@@ -1,0 +1,9 @@
+numpy
+scikit-learn
+transformers
+torch
+torch_geometric
+networkx
+nltk
+pandas
+wandb
