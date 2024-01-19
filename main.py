@@ -120,7 +120,7 @@ for i in range(nb_epochs):
 
     # LRAP computation    
     graph_embeddings, text_embeddings, y_true = compute_embeddings_valid(model, val_dataset, device, batch_size)
-    LRAP_current = compute_similarities_LRAP(graph_embeddings, text_embeddings, y_true)
+    lrap_current = compute_similarities_LRAP(graph_embeddings, text_embeddings, y_true)
 
     # Save model checkpoint
     if best_validation_loss==val_loss:
@@ -142,7 +142,7 @@ for i in range(nb_epochs):
     wandb.log({"loss": loss, 
                "val_loss": val_loss, 
                "best_val_loss": best_validation_loss,
-               "LRAP": LRAP_current})
+               "LRAP": lrap_current})
     
     if patience_counter >= patience:
         print(f'Early stopping triggered after epoch {i+1}. Ending training.')
