@@ -1,8 +1,8 @@
-from dataloader import GraphTextDataset, GraphDataset, TextDataset
+from data.dataloader import GraphTextDataset, GraphDataset, TextDataset
 from torch_geometric.data import DataLoader
 from torch.utils.data import DataLoader as TorchDataLoader
 from sklearn.metrics import label_ranking_average_precision_score
-from Model import Model
+from models.Model import Model
 import numpy as np
 from transformers import AutoTokenizer
 import torch
@@ -11,13 +11,9 @@ import time
 import os
 import pandas as pd
 import wandb
-from utils import compute_embeddings_valid, compute_similarities_LRAP
+from utils import compute_embeddings_valid, compute_similarities_LRAP, make_predictions
 
-CE = torch.nn.CrossEntropyLoss()
-def contrastive_loss(v1, v2):
-  logits = torch.matmul(v1,torch.transpose(v2, 0, 1))
-  labels = torch.arange(logits.shape[0], device=v1.device)
-  return CE(logits, labels) + CE(torch.transpose(logits, 0, 1), labels)
+from losses.contrastive_loss import contrastive_loss
 
 ## Model
 model_name = 'distilbert-base-uncased'
@@ -181,11 +177,13 @@ for batch in test_text_loader:
         text_embeddings.append(output.tolist())
 
 
-from sklearn.metrics.pairwise import cosine_similarity
+# from sklearn.metrics.pairwise import cosine_similarity
 
-similarity = cosine_similarity(text_embeddings, graph_embeddings)
+# similarity = cosine_similarity(text_embeddings, graph_embeddings)
 
-solution = pd.DataFrame(similarity)
-solution['ID'] = solution.index
-solution = solution[['ID'] + [col for col in solution.columns if col!='ID']]
-solution.to_csv('submission.csv', index=False)
+# solution = pd.DataFrame(similarity)
+# solution['ID'] = solution.index
+# solution = solution[['ID'] + [col for col in solution.columns if col!='ID']]
+# solution.to_csv('submission.csv', index=False)
+        
+make_predictions(text_embeddings, graph_embeddings)

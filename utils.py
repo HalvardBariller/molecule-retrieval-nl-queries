@@ -1,8 +1,8 @@
-from dataloader import GraphTextDataset, GraphDataset, TextDataset
+from data.dataloader import GraphTextDataset, GraphDataset, TextDataset
 from torch_geometric.data import DataLoader
 from torch.utils.data import DataLoader as TorchDataLoader
 from sklearn.metrics import label_ranking_average_precision_score
-from Model import Model
+from models.Model import Model
 import numpy as np
 from transformers import AutoTokenizer
 import torch
@@ -80,3 +80,34 @@ def compute_similarities_LRAP(graph_embeddings, text_embeddings, y_true):
 
     print("Validation LRAP Score:", val_lrap)
     return val_lrap
+
+
+def make_predictions(graph_embeddings, text_embeddings):
+    """Make predictions on the test set and save them to a CSV file.
+    --------------
+    Parameters:
+    graph_embeddings: list of numpy arrays
+        List of graph embeddings.
+    text_embeddings: list of numpy arrays
+        List of text embeddings.
+    """
+    # Cosine similarity
+    similarity_cos = cosine_similarity(text_embeddings, graph_embeddings)
+    # Adjusted cosine similarity
+    text_embeddings_centered = text_embeddings - np.mean(text_embeddings, axis=0)
+    graph_embeddings_centered = graph_embeddings - np.mean(graph_embeddings, axis=0)
+    similarity_adjcos = cosine_similarity(text_embeddings_centered, graph_embeddings_centered)
+    # Dot product
+    similarity_dot = np.dot(text_embeddings, np.transpose(graph_embeddings))
+    # Euclidean similarity
+    similarity_euc = - pairwise_distances(text_embeddings, graph_embeddings, metric='euclidean')
+    # Minkowski similarity
+    similarity_min = - pairwise_distances(text_embeddings, graph_embeddings, metric='minkowski')
+    
+    similarity = np.mean([similarity_cos, similarity_adjcos, similarity_dot, similarity_euc, similarity_min], axis=0)
+
+    solution = pd.DataFrame(similarity)
+    solution['ID'] = solution.index
+    solution = solution[['ID'] + [col for col in solution.columns if col!='ID']]
+    solution.to_csv('submission.csv', index=False)
+

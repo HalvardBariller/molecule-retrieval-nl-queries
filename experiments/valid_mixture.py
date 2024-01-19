@@ -1,8 +1,8 @@
-from dataloader import GraphTextDataset, GraphDataset, TextDataset
+from data.dataloader import GraphTextDataset, GraphDataset, TextDataset
 from torch_geometric.data import DataLoader
 from torch.utils.data import DataLoader as TorchDataLoader
 from sklearn.metrics import label_ranking_average_precision_score
-from Model import Model
+from models.Model import Model
 import numpy as np
 from transformers import AutoTokenizer
 import torch
