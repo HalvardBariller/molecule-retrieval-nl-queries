@@ -6,7 +6,6 @@ from torch_geometric.nn import global_mean_pool
 from transformers import AutoModel
 
 
-    
 class TextEncoder(nn.Module):
     def __init__(self, model_name):
         super(TextEncoder, self).__init__()
