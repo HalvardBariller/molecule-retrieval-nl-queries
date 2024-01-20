@@ -71,7 +71,7 @@ def compute_similarities_LRAP(graph_embeddings, text_embeddings, y_true):
     graph_embeddings_centered = graph_embeddings - np.mean(graph_embeddings, axis=0)
     similarity_adjcos = cosine_similarity(text_embeddings_centered, graph_embeddings_centered)
     # Dot product
-    similarity_dot = np.dot(text_embeddings, np.transpose(graph_embeddings))
+    similarity_dot = np.matmul(text_embeddings, np.transpose(graph_embeddings))
     # Euclidean similarity
     similarity_euc = - pairwise_distances(text_embeddings, graph_embeddings, metric='euclidean')
     # Minkowski similarity
@@ -82,7 +82,6 @@ def compute_similarities_LRAP(graph_embeddings, text_embeddings, y_true):
     # Compute LRAP
     val_lrap = label_ranking_average_precision_score(y_true, similarity)
 
-    print("Validation LRAP Score:", val_lrap)
     return val_lrap
 
 

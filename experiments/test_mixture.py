@@ -1,5 +1,5 @@
 from data.dataloader import GraphTextDataset, GraphDataset, TextDataset
-from torch_geometric.data import DataLoader
+from torch_geometric.loader import DataLoader
 from torch.utils.data import DataLoader as TorchDataLoader
 from sklearn.metrics import label_ranking_average_precision_score
 from models.Model import Model

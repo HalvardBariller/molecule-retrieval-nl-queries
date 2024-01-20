@@ -1,5 +1,6 @@
 from dataloader.dataloader import GraphTextDataset, GraphDataset, TextDataset
-from torch_geometric.data import DataLoader
+#from torch_geometric.data import DataLoader
+from torch_geometric.loader import DataLoader 
 from torch.utils.data import DataLoader as TorchDataLoader
 from sklearn.metrics import label_ranking_average_precision_score
 from models.Model import Model
@@ -7,6 +8,7 @@ import numpy as np
 from transformers import AutoTokenizer
 import torch
 from torch import optim
+from torch.cuda.amp import GradScaler, autocast
 import time
 import os
 import pandas as pd
@@ -14,6 +16,9 @@ import wandb
 from utils import compute_embeddings_valid, compute_similarities_LRAP, make_predictions
 
 from losses.contrastive_loss import contrastive_loss
+
+import warnings
+warnings.simplefilter("ignore", category=UserWarning)
 
 ## Model
 model_name = 'distilbert-base-uncased'
@@ -33,7 +38,7 @@ wandb.init(
         project="2nd run - ALTEGRAD",
         config={
             "epochs": 20,
-            "batch_size": 32,
+            "batch_size": 64,
             "lr": 2e-5
             })
 config = wandb.config
@@ -47,20 +52,26 @@ learning_rate = wandb.config.lr
 
 
 ## Early Stopping Parameters
-patience = 3  # Number of epochs to wait for improvement
+patience = 7  # Number of epochs to wait for improvement
 # delta = 0.02  # Minimum change to qualify as an improvement
 patience_counter = 0
 
 
-val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True)
-train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+num_workers = 12
+
+val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, num_workers = num_workers, pin_memory = True)
+train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers = num_workers, pin_memory = True)
 
 model = Model(model_name=model_name, num_node_features=300, nout=768, nhid=300, graph_hidden_channels=300) # nout = bert model hidden dim
 model.to(device)
 
 optimizer = optim.AdamW(model.parameters(), lr=learning_rate,
-                                betas=(0.9, 0.999),
+                                betas=(0.9, 0.98),
                                 weight_decay=0.01)
+#scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=30, gamma=0.1)
+scheduler = torch.optim.lr_scheduler.LinearLR(optimizer, start_factor=1.0, end_factor=0.3, total_iters=nb_epochs)
+scaler = GradScaler()
+
 
 epoch = 0
 loss = 0
@@ -79,14 +90,22 @@ for i in range(nb_epochs):
         attention_mask = batch.attention_mask
         batch.pop('attention_mask')
         graph_batch = batch
+
+        with autocast(dtype=torch.float16):
         
-        x_graph, x_text = model(graph_batch.to(device), 
-                                input_ids.to(device), 
-                                attention_mask.to(device))
-        current_loss = contrastive_loss(x_graph, x_text)   
+            x_graph, x_text = model(graph_batch.to(device), 
+                                    input_ids.to(device), 
+                                    attention_mask.to(device))
+        
+            
+            current_loss = contrastive_loss(x_graph, x_text)
+            
         optimizer.zero_grad()
-        current_loss.backward()
-        optimizer.step()
+        scaler.scale(current_loss).backward()
+        #current_loss.backward()
+        scaler.step(optimizer)
+        scaler.update()
+        #optimizer.step()
         loss += current_loss.item()
         
         count_iter += 1
@@ -96,6 +115,7 @@ for i in range(nb_epochs):
                                                                         time2 - time1, loss/printEvery))
             losses.append(loss)
             loss = 0 
+            
     model.eval()       
     val_loss = 0        
     for batch in val_loader:
@@ -118,18 +138,19 @@ for i in range(nb_epochs):
     best_validation_loss = min(best_validation_loss, val_loss)
     print('-----EPOCH'+str(i+1)+'----- done.  Validation loss: ', str(val_loss/len(val_loader)) )
 
-    # LRAP computation    
+    # LRAP computation
     graph_embeddings, text_embeddings, y_true = compute_embeddings_valid(model, val_dataset, device, batch_size)
-    lrap_current = compute_similarities_LRAP(graph_embeddings, text_embeddings, y_true)
+    lrap_current_valid = compute_similarities_LRAP(graph_embeddings, text_embeddings, y_true)
+    print("Validation LRAP Score:", lrap_current_valid)
 
     # Save model checkpoint
     if best_validation_loss==val_loss:
         print('validation loss improved saving checkpoint...')
         # Remove previous checkpoints
         for file in os.listdir('./'):
-            if 'model' in file:
+            if 'model.pt' in file:
                 os.remove(file)
-        save_path = os.path.join('./', 'model'+str(i)+'.pt')
+        save_path = os.path.join('./', str(i)+'model.pt')
         torch.save({
         'epoch': i,
         'model_state_dict': model.state_dict(),
@@ -142,11 +163,14 @@ for i in range(nb_epochs):
     wandb.log({"loss": loss, 
                "val_loss": val_loss, 
                "best_val_loss": best_validation_loss,
-               "LRAP": lrap_current})
+               #"LRAP_train": lrap_current_train,
+              "LRAP_valid": lrap_current_valid})
     
     if patience_counter >= patience:
         print(f'Early stopping triggered after epoch {i+1}. Ending training.')
         break
+
+    scheduler.step()
 
 
 print('loading best model...')

@@ -5,6 +5,8 @@ from torch_geometric.nn import GCNConv
 from torch_geometric.nn import global_mean_pool
 from transformers import AutoModel
 
+import sys
+
 from .graph_encoders import GraphEncoder
 from .text_encoders import TextEncoder
 
@@ -26,3 +28,4 @@ class Model(nn.Module):
     
     def get_graph_encoder(self):
         return self.graph_encoder
+
