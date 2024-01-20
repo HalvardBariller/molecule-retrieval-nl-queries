@@ -5,8 +5,8 @@ from torch_geometric.nn import GCNConv
 from torch_geometric.nn import global_mean_pool
 from transformers import AutoModel
 
-from graph_encoders import GraphEncoder
-from text_encoders import TextEncoder
+from .graph_encoders import GraphEncoder
+from .text_encoders import TextEncoder
 
 
 
