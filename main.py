@@ -13,6 +13,7 @@ import time
 import os
 import pandas as pd
 import wandb
+from tqdm import tqdm
 from utils import compute_embeddings_valid, compute_similarities_LRAP, make_predictions
 
 from losses.contrastive_loss import contrastive_loss
@@ -38,7 +39,7 @@ wandb.init(
         project="2nd run - ALTEGRAD",
         config={
             "epochs": 20,
-            "batch_size": 64,
+            "batch_size": 16,
             "lr": 2e-5
             })
 config = wandb.config
@@ -84,7 +85,7 @@ best_validation_loss = 1000000
 for i in range(nb_epochs):
     print('-----EPOCH{}-----'.format(i+1))
     model.train()
-    for batch in train_loader:
+    for batch in tqdm(train_loader):
         input_ids = batch.input_ids
         batch.pop('input_ids')
         attention_mask = batch.attention_mask

@@ -7,7 +7,7 @@ from transformers import AutoModel
 
 import sys
 
-from .graph_encoders import GraphEncoder
+from .graph_encoders import GraphEncoder, GraphormerEncoder
 from .text_encoders import TextEncoder
 
 
@@ -15,7 +15,8 @@ from .text_encoders import TextEncoder
 class Model(nn.Module):
     def __init__(self, model_name, num_node_features, nout, nhid, graph_hidden_channels):
         super(Model, self).__init__()
-        self.graph_encoder = GraphEncoder(num_node_features, nout, nhid, graph_hidden_channels)
+        #self.graph_encoder = GraphEncoder(num_node_features, nout, nhid, graph_hidden_channels)
+        self.graph_encoder = GraphormerEncoder(num_layers=6, num_node_features=num_node_features, hidden_dim=nout, num_heads=32)
         self.text_encoder = TextEncoder(model_name)
         
     def forward(self, graph_batch, input_ids, attention_mask):

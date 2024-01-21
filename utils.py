@@ -2,7 +2,6 @@ from dataloader.dataloader import GraphTextDataset, GraphDataset, TextDataset
 from torch_geometric.data import DataLoader
 from torch.utils.data import DataLoader as TorchDataLoader
 from sklearn.metrics import label_ranking_average_precision_score
-from models.Model import Model
 import numpy as np
 from transformers import AutoTokenizer
 import torch
@@ -134,7 +133,7 @@ class VirtualNodeBatch(BaseTransform):
         assert num_nodes is not None
 
         arange = torch.arange(num_nodes, device=row.device)
-        full = batch + num_nodes + 1
+        full = batch + num_nodes
         row = torch.cat([row, arange, full], dim=0)
         col = torch.cat([col, full, arange], dim=0)
         edge_index = torch.stack([row, col], dim=0)
@@ -142,11 +141,11 @@ class VirtualNodeBatch(BaseTransform):
         new_type = edge_type.new_full((num_nodes, ), int(edge_type.max()) + 1)
         edge_type = torch.cat([edge_type, new_type, new_type + 1], dim=0)
 
-        new_batch = torch.arange(data.batch_size+1, device=batch.device)
+        new_batch = torch.arange(data.batch_size, device=batch.device)
         batch = torch.cat([batch, new_batch], dim=0)
         
         virtual_node_index = torch.arange(num_nodes, num_nodes+data.batch_size, device=batch.device)
-        is_virtual_node = torch.zeros((num_nodes+torch.batch_size,), dtype=torch.bool, device=batch.device)
+        is_virtual_node = torch.zeros((num_nodes+data.batch_size,), dtype=torch.bool, device=batch.device)
         is_virtual_node[num_nodes:] = True
 
         old_data = copy.copy(data)
@@ -166,7 +165,7 @@ class VirtualNodeBatch(BaseTransform):
                     size[dim] = 2 * num_nodes
                     fill_value = 0.
                 elif old_data.is_node_attr(key):
-                    size[dim] = 1
+                    size[dim] = data.batch_size
                     fill_value = 0.
 
                 if fill_value is not None:
@@ -180,6 +179,8 @@ class VirtualNodeBatch(BaseTransform):
         data.is_virtual_node = is_virtual_node
 
         if 'num_nodes' in data:
-            data.num_nodes = num_nodes + 1
+            data.num_nodes = num_nodes + data.batch_size
+        
+        data.orig_num_nodes = num_nodes
 
         return data
