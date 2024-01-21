@@ -65,6 +65,7 @@ class Graphormer_MHA(nn.Module):
         self.heads = []
         for _ in range(num_heads):
             self.heads.append(Graphormer_AttentionHead(self.hidden_dim, self.dim_k))
+        self.heads = nn.ModuleList(self.heads)
         self.proj_out = nn.Linear(hidden_dim, hidden_dim)
         
     def forward(self, H, b_matrix, attention_mask):
@@ -99,6 +100,7 @@ class GraphormerEncoder(nn.Module):
         self.layers = []
         for _ in range(num_layers):
             self.layers.append(Graphormer_EncoderBlock(hidden_dim, num_heads, dim_ff))
+        self.layers = nn.ModuleList(self.layers)
         self.centrality_encoding = nn.Embedding(max_degree+1, self.hidden_dim)
         self.distance_biases = nn.Parameter(torch.randn((max_sp_distance+2,))) # last element is for unconnected pairs of nodes
         self.virtnode_dist_bias = nn.Parameter(torch.tensor(0.0))
