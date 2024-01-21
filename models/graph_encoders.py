@@ -105,8 +105,8 @@ class GraphormerEncoder(nn.Module):
 
     def forward(self, graph_batch):
         x = graph_batch.x
-        sp_matrix = utils.compute_shortest_path_matrix(graph_batch)
-        sp_matrix = torch.min(sp_matrix, torch.tensor(self.max_sp_distance))
+        sp_matrix = utils.compute_shortest_path_matrix(graph_batch).to(x.device)
+        sp_matrix = torch.min(sp_matrix, torch.tensor(self.max_sp_distance, device=x.device))
         transform = utils.VirtualNodeBatch()
         graph_batch = transform(graph_batch)
 
