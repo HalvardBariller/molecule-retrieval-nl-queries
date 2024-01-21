@@ -114,23 +114,23 @@ class GraphormerEncoder(nn.Module):
         attention_mask = graph_batch.batch[:, None] == graph_batch.batch[None, :]
 
         # b matrix, shared by all layers
-        ii_orig = torch.arange(0, graph_batch.orig_num_nodes)[:, None]
-        jj_orig = torch.arange(0, graph_batch.orig_num_nodes)[None, :]
+        ii_orig = torch.arange(0, graph_batch.orig_num_nodes, device=x.device)[:, None]
+        jj_orig = torch.arange(0, graph_batch.orig_num_nodes, device=x.device)[None, :]
         B_matrix = torch.full((graph_batch.num_nodes, graph_batch.num_nodes), self.distance_biases[-1].item(), device=x.device)
         B_matrix[ii_orig, jj_orig] = self.distance_biases[sp_matrix[ii_orig, jj_orig]]
 
-        ii = torch.arange(0, graph_batch.num_nodes)[:, None]
-        jj = torch.arange(0, graph_batch.num_nodes)[None, :]
+        ii = torch.arange(0, graph_batch.num_nodes, device=x.device)[:, None]
+        jj = torch.arange(0, graph_batch.num_nodes, device=x.device)[None, :]
         virtual_edges = torch.argwhere(( (graph_batch.is_virtual_node[ii]) & (~(graph_batch.is_virtual_node[jj])) & 
                 (graph_batch.batch[ii] == graph_batch.batch[jj]) ) |
                 ( (~graph_batch.is_virtual_node[ii]) & (graph_batch.is_virtual_node[jj]) & 
                 (graph_batch.batch[ii] == graph_batch.batch[jj]) ))
         B_matrix[virtual_edges.T[0], virtual_edges.T[1]] = self.virtnode_dist_bias
 
-        B_matrix[torch.arange(graph_batch.num_nodes), torch.arange(graph_batch.num_nodes)] = self.distance_biases[0]
+        B_matrix[torch.arange(graph_batch.num_nodes, device=x.device), torch.arange(graph_batch.num_nodes, device=x.device)] = self.distance_biases[0]
 
         #print(graph_batch, graph_batch.num_nodes, torch.max(graph_batch.edge_index), graph_batch.is_node_attr('x'))
-        degrees = torch.minimum(torch.tensor(self.max_degree, dtype=torch.long), torch.tensor(degree(graph_batch.edge_index[0], graph_batch.num_nodes), dtype=torch.long))
+        degrees = torch.minimum(torch.tensor(self.max_degree, dtype=torch.long, device=x.device), torch.tensor(degree(graph_batch.edge_index[0], graph_batch.num_nodes), dtype=torch.long, device=x.device))
         x = self.init_proj(x)
         # Initial embedding of virtual nodes
         virtual_node_init = torch.zeros((graph_batch.batch_size, self.hidden_dim), device=x.device)
