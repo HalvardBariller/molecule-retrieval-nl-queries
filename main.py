@@ -43,7 +43,7 @@ wandb.init(
         name=sys.argv[1] if len(sys.argv) >= 2 else None,
         config={
             "epochs": 20,
-            "batch_size": 16,
+            "batch_size": 8,
             "lr": 2e-5
             })
 config = wandb.config
@@ -67,7 +67,7 @@ num_workers = 12
 val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, num_workers = num_workers, pin_memory = True)
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers = num_workers, pin_memory = True)
 
-graph_encoder = GraphEncoder(num_node_features=300, nout=768, nhid=300, graph_hidden_channels=300) # nout = bert model hidden dim
+graph_encoder = GraphormerEncoder(num_layers=6, num_node_features=300, hidden_dim=768, num_heads=32) # nout = bert model hidden dim
 text_encoder = TextEncoder(model_name)
 model = Model(graph_encoder, text_encoder)
 model.to(device)
