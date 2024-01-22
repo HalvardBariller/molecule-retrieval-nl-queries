@@ -2,8 +2,8 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 import utils
-from torch_geometric.nn import GCNConv
-from torch_geometric.nn import global_mean_pool
+from torch_geometric.nn import GCNConv, GINConv
+from torch_geometric.nn import global_mean_pool, global_add_pool
 from torch_geometric.utils import degree
 from transformers import AutoModel
 
@@ -108,3 +108,42 @@ class GraphormerEncoder(nn.Module):
         for i in range(self.num_layers):
             x = self.layers[i](x, sp_matrix)
         return x[graph_batch.virtual_node_index]        
+    
+class GINEncoder(nn.Module):
+    def __init__(self, num_layers, num_node_features, interm_hidden_dim, hidden_dim, out_interm_dim, out_dim):
+        super(GINEncoder, self).__init__()
+        if num_layers < 1:
+            raise ValueError("GIN must have at least one layer")
+        self.num_layers = num_layers
+        self.num_node_features = num_node_features
+        self.hidden_dim = hidden_dim
+        self.out_interm_dim = out_interm_dim
+        self.out_dim = out_dim
+        self.layers = nn.ModuleList()
+        firstMLP = nn.Sequential(
+            nn.Linear(num_node_features, interm_hidden_dim),
+            nn.ReLU(),
+            nn.Linear(interm_hidden_dim, hidden_dim)
+        )
+        self.layers.append(GINConv(firstMLP))
+        for i in range(1, num_layers):
+            mlp = nn.Sequential(
+                nn.Linear(hidden_dim, interm_hidden_dim),
+                nn.ReLU(),
+                nn.Linear(interm_hidden_dim, hidden_dim)
+            )
+            self.layers.append(GINConv(mlp))
+        self.finalMLP = nn.Sequential(
+            nn.Linear(hidden_dim, out_interm_dim),
+            nn.ReLU(),
+            nn.Linear(out_interm_dim, out_dim)
+        )
+    
+    def forward(self, graph_batch):
+        x = graph_batch.x
+        edge_index = graph_batch.edge_index
+        batch = graph_batch.batch
+        for layer in self.layers:
+            x = layer(x, edge_index)
+        x = global_add_pool(x, batch)
+        return self.finalMLP(x)
