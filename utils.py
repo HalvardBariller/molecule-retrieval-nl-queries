@@ -79,9 +79,19 @@ def compute_similarities_LRAP(graph_embeddings, text_embeddings, y_true):
     
     similarity = np.mean([similarity_cos, similarity_adjcos, similarity_dot, similarity_euc, similarity_min], axis=0)
 
+    similarity_normalized = np.mean([similarity_cos / np.max(similarity_cos, axis=1)[:,None],
+                                    similarity_adjcos / np.max(similarity_adjcos, axis=1)[:,None],
+                                    similarity_dot / np.max(similarity_dot, axis=1)[:,None],
+                                    similarity_euc / np.max(similarity_euc, axis=1)[:,None],
+                                    similarity_min / np.max(similarity_min, axis=1)[:,None]], axis=0)
+                                        
+
     # Compute LRAP
     val_lrap = label_ranking_average_precision_score(y_true, similarity)
-
+    val_lrap_normalized = label_ranking_average_precision_score(y_true, similarity_normalized)
+    print('LRAP:', val_lrap)
+    print('LRAP normalized:', val_lrap_normalized)
+    
     return val_lrap
 
 
