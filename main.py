@@ -41,7 +41,7 @@ wandb.init(
         project="2nd run - ALTEGRAD",
         name=sys.argv[1] if len(sys.argv) >= 2 else None,
         config={
-            "epochs": 20,
+            "epochs": 40,
             "batch_size": 32,
             "lr": 2e-5
             })
