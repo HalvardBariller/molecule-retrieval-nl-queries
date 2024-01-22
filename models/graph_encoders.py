@@ -134,7 +134,7 @@ class GINEncoder(nn.Module):
             )
             self.layers.append(GINConv(mlp))
         self.finalMLP = nn.Sequential(
-            nn.Linear(hidden_dim, out_interm_dim),
+            nn.Linear(num_node_features + num_layers*hidden_dim, out_interm_dim),
             nn.ReLU(),
             nn.Linear(out_interm_dim, out_dim)
         )
@@ -143,7 +143,9 @@ class GINEncoder(nn.Module):
         x = graph_batch.x
         edge_index = graph_batch.edge_index
         batch = graph_batch.batch
+        readouts = [global_add_pool(x, batch)]
         for layer in self.layers:
             x = layer(x, edge_index)
-        x = global_add_pool(x, batch)
+            readouts.append(global_add_pool(x, batch))
+        x = torch.cat(readouts, dim=-1)
         return self.finalMLP(x)
