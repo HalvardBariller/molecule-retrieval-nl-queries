@@ -42,7 +42,7 @@ wandb.init(
         name=sys.argv[1] if len(sys.argv) >= 2 else None,
         config={
             "epochs": 20,
-            "batch_size": 64,
+            "batch_size": 32,
             "lr": 2e-5
             })
 config = wandb.config
