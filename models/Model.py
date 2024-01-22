@@ -13,10 +13,10 @@ from .text_encoders import TextEncoder
 
 
 class Model(nn.Module):
-    def __init__(self, model_name, num_node_features, nout, nhid, graph_hidden_channels):
+    def __init__(self, graph_encoder, text_encoder):
         super(Model, self).__init__()
-        self.graph_encoder = GraphEncoder(num_node_features, nout, nhid, graph_hidden_channels)
-        self.text_encoder = TextEncoder(model_name)
+        self.graph_encoder = graph_encoder
+        self.text_encoder = text_encoder
         
     def forward(self, graph_batch, input_ids, attention_mask):
         graph_encoded = self.graph_encoder(graph_batch)
