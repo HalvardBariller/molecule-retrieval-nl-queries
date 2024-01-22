@@ -13,6 +13,7 @@ from torch import optim
 from torch.cuda.amp import GradScaler, autocast
 import time
 import os
+import sys
 import pandas as pd
 import wandb
 from utils import compute_embeddings_valid, compute_similarities_LRAP, make_predictions
@@ -38,6 +39,7 @@ print("Device:", device)
 ## Hyperparameters
 wandb.init(
         project="2nd run - ALTEGRAD",
+        name=sys.argv[1] if len(sys.argv) >= 2 else None,
         config={
             "epochs": 20,
             "batch_size": 64,
