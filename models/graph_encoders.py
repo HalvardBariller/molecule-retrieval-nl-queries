@@ -10,30 +10,38 @@ from transformers import AutoModel
 
 
 class GraphEncoder(nn.Module):
-    def __init__(self, num_node_features, nout, nhid, graph_hidden_channels):
+    def __init__(self, num_node_features, n_layers_conv, n_layers_out, nout, nhid, graph_hidden_channels):
         super(GraphEncoder, self).__init__()
+        if n_layers_conv < 1:
+            raise ValueError("GCN encoder must use at least one convolution layer")
+        if n_layers_out < 2:
+            raise ValueError("Out MLP must have at least two layers")
         self.nhid = nhid
         self.nout = nout
         self.relu = nn.ReLU()
         self.ln = nn.LayerNorm((nout))
-        self.conv1 = GCNConv(num_node_features, graph_hidden_channels)
-        self.conv2 = GCNConv(graph_hidden_channels, graph_hidden_channels)
-        self.conv3 = GCNConv(graph_hidden_channels, graph_hidden_channels)
-        self.mol_hidden1 = nn.Linear(graph_hidden_channels, nhid)
-        self.mol_hidden2 = nn.Linear(nhid, nout)
+        self.convs = nn.ModuleList()
+        self.convs.append(GCNConv(num_node_features, graph_hidden_channels))
+        for i in range(n_layers_conv-1):
+            self.convs.append(GCNConv(graph_hidden_channels, graph_hidden_channels))
+        self.mol_mlp = nn.Sequential()
+        self.mol_mlp.append(nn.Linear(graph_hidden_channels, nhid))
+        self.mol_mlp.append(nn.ReLU())
+        for _ in range(1, n_layers_out-1):
+            self.mol_mlp.append(nn.Linear(nhid, nhid))
+            self.mol_mlp.append(nn.ReLU())
+        self.mol_mlp.append(nn.Linear(nhid, nout))
 
     def forward(self, graph_batch):
         x = graph_batch.x
         edge_index = graph_batch.edge_index
         batch = graph_batch.batch
-        x = self.conv1(x, edge_index)
-        x = x.relu()
-        x = self.conv2(x, edge_index)
-        x = x.relu()
-        x = self.conv3(x, edge_index)
+        for i in range(len(self.convs)-1):
+            x = self.convs[i](x, edge_index)
+            x = x.relu()
+        x = self.convs[-1](x, edge_index)
         x = global_mean_pool(x, batch)
-        x = self.mol_hidden1(x).relu()
-        x = self.mol_hidden2(x)
+        x = self.mol_mlp(x)
         return x
     
 class Graphormer_AttentionHead(nn.Module):

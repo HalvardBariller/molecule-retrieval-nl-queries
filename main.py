@@ -67,7 +67,8 @@ num_workers = 12
 val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, num_workers = num_workers, pin_memory = True)
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers = num_workers, pin_memory = True)
 
-graph_encoder = GINEncoder(num_layers=5, num_node_features=300, interm_hidden_dim=600, hidden_dim=300, out_interm_dim=600, out_dim=768) # nout = bert model hidden dim
+#graph_encoder = GINEncoder(num_layers=5, num_node_features=300, interm_hidden_dim=600, hidden_dim=300, out_interm_dim=600, out_dim=768) # nout = bert model hidden dim
+graph_encoder = GraphEncoder(num_node_features=300, n_layers_conv=5, n_layers_out=3, nout=768, nhid=300, graph_hidden_channels=300)
 text_encoder = TextEncoder(model_name)
 model = Model(graph_encoder, text_encoder)
 model.to(device)
