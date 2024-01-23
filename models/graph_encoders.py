@@ -96,7 +96,11 @@ class GraphormerEncoder(nn.Module):
         self.hidden_dim = hidden_dim
         self.max_degree = max_degree
         self.max_sp_distance = max_sp_distance
-        self.init_proj = nn.Linear(num_node_features, hidden_dim)
+        self.init_proj = nn.Sequential(
+            nn.Linear(num_node_features, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, hidden_dim)
+        )
         self.layers = []
         for _ in range(num_layers):
             self.layers.append(Graphormer_EncoderBlock(hidden_dim, num_heads, dim_ff))

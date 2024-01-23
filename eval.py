@@ -12,6 +12,7 @@ import os
 import pandas as pd
 from utils import compute_embeddings_valid, compute_similarities_LRAP, make_predictions
 import argparse
+from tqdm import tqdm
 
 from losses.contrastive_loss import contrastive_loss
 
@@ -43,13 +44,13 @@ model.to(device)
 
 print("Model path:", args.model_path)
 print('Loading model...')
-checkpoint = torch.load(args.model_path)
+checkpoint = torch.load(args.model_path, map_location=device)
 model.load_state_dict(checkpoint['model_state_dict'])
 print("Model loaded")
 model.eval()
 
 # Compute validation LRAP
-val_loader = DataLoader(val_dataset, batch_size=batch_size)
+"""val_loader = DataLoader(val_dataset, batch_size=batch_size)
 val_loss = 0        
 for batch in val_loader:
     input_ids = batch.input_ids
@@ -68,7 +69,7 @@ print('Validation loss: ', str(val_loss/len(val_loader)) )
 # LRAP computation
 graph_embeddings, text_embeddings, y_true = compute_embeddings_valid(model, val_dataset, device, batch_size)
 lrap_current_valid = compute_similarities_LRAP(graph_embeddings, text_embeddings, y_true)
-print("Validation LRAP Score:", lrap_current_valid)
+print("Validation LRAP Score:", lrap_current_valid)"""
 
 graph_model = model.get_graph_encoder()
 text_model = model.get_text_encoder()
@@ -81,13 +82,15 @@ idx_to_cid = test_cids_dataset.get_idx_to_cid()
 test_loader = DataLoader(test_cids_dataset, batch_size=batch_size, shuffle=False)
 
 graph_embeddings = []
-for batch in test_loader:
+print("Computing graph embeddings...")
+for batch in tqdm(test_loader):
     for output in graph_model(batch.to(device)):
         graph_embeddings.append(output.tolist())
 
 test_text_loader = TorchDataLoader(test_text_dataset, batch_size=batch_size, shuffle=False)
 text_embeddings = []
-for batch in test_text_loader:
+print("Computing text embeddings...")
+for batch in tqdm(test_text_loader):
     for output in text_model(batch['input_ids'].to(device), 
                              attention_mask=batch['attention_mask'].to(device)):
         text_embeddings.append(output.tolist())
