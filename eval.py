@@ -12,21 +12,21 @@ import torch
 import os
 import pandas as pd
 from utils import compute_embeddings_valid, compute_similarities_LRAP, make_predictions
+import argparse
 
 from losses.contrastive_loss import contrastive_loss
 
 import warnings
 warnings.simplefilter("ignore", category=UserWarning)
 
+argparser = argparse.ArgumentParser(description="Evaluates the given model on the validation set and generates submission using the model.")
+argparser.add_argument("model_path")
+args = argparser.parse_args()
+
 ## Model
 model_name = 'distilbert-base-uncased'
 
 batch_size = 64
-
-for file in os.listdir('./'):
-    if 'model.pt' in file:
-        save_path = os.path.join('./', file)    
-        print("Best model loaded")
 
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 gt = np.load("./data/token_embedding_dict.npy", allow_pickle=True)[()]
@@ -41,10 +41,11 @@ model = Model(graph_encoder, text_encoder)
 model.to(device)
 
 
-print("Model path", save_path)
-print('loading best model...')
-checkpoint = torch.load(save_path)
+print("Model path:", args.model_path)
+print('Loading model...')
+checkpoint = torch.load(args.model_path)
 model.load_state_dict(checkpoint['model_state_dict'])
+print("Model loaded")
 model.eval()
 
 # Compute validation LRAP
