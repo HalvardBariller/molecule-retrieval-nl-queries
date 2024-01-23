@@ -89,11 +89,17 @@ def compute_similarities_LRAP(graph_embeddings, text_embeddings, y_true):
     # Compute LRAP
     val_lrap = label_ranking_average_precision_score(y_true, similarity)
     val_lrap_normalized = label_ranking_average_precision_score(y_true, similarity_normalized)
+    print("LRAP cosine:", label_ranking_average_precision_score(y_true, similarity_cos))
+    print("LRAP adjcos:", label_ranking_average_precision_score(y_true, similarity_adjcos))
+    print("LRAP dot:", label_ranking_average_precision_score(y_true, similarity_dot))
+    print("LRAP euc:", label_ranking_average_precision_score(y_true, similarity_euc))
+    print("LRAP mink:", label_ranking_average_precision_score(y_true, similarity_min))
+
     print('LRAP:', val_lrap)
     print('LRAP normalized:', val_lrap_normalized)
 
     #print("Validation LRAP Score:", val_lrap)
-    return val_lrap
+    return val_lrap, val_lrap_normalized
 
 
 def make_predictions(graph_embeddings, text_embeddings):
@@ -129,7 +135,7 @@ def make_predictions(graph_embeddings, text_embeddings):
     solution = pd.DataFrame(similarity_normalized)
     solution['ID'] = solution.index
     solution = solution[['ID'] + [col for col in solution.columns if col!='ID']]
-    solution.to_csv('submission2.csv', index=False)
+    solution.to_csv('submission.csv', index=False)
     
     
 
