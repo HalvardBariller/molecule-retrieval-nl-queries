@@ -115,8 +115,14 @@ def make_predictions(graph_embeddings, text_embeddings):
     similarity_min = - pairwise_distances(text_embeddings, graph_embeddings, metric='minkowski')
     
     similarity = np.mean([similarity_cos, similarity_adjcos, similarity_dot, similarity_euc, similarity_min], axis=0)
+
+    similarity_normalized = np.mean([similarity_cos / np.max(similarity_cos, axis=1)[:,None],
+                                    similarity_adjcos / np.max(similarity_adjcos, axis=1)[:,None],
+                                    similarity_dot / np.max(similarity_dot, axis=1)[:,None],
+                                    similarity_euc / np.max(similarity_euc, axis=1)[:,None],
+                                    similarity_min / np.max(similarity_min, axis=1)[:,None]], axis=0)
     
-    solution = pd.DataFrame(similarity)
+    solution = pd.DataFrame(similarity_normalized)
     solution['ID'] = solution.index
     solution = solution[['ID'] + [col for col in solution.columns if col!='ID']]
     solution.to_csv('submission2.csv', index=False)

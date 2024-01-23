@@ -1,5 +1,4 @@
 from dataloader.dataloader import GraphTextDataset, GraphDataset, TextDataset
-#from torch_geometric.data import DataLoader
 from torch_geometric.loader import DataLoader 
 from torch.utils.data import DataLoader as TorchDataLoader
 from sklearn.metrics import label_ranking_average_precision_score
@@ -21,13 +20,13 @@ import warnings
 warnings.simplefilter("ignore", category=UserWarning)
 
 ## Model
-#model_name = 'distilbert-base-uncased'
-model_name = 'allenai/scibert_scivocab_uncased'
+model_name = 'distilbert-base-uncased'
+
 
 batch_size = 32
 
 for file in os.listdir('./'):
-    if 'model.pt' in file:
+    if 'woven' in file:
         save_path = os.path.join('./', file)    
         print("Best model loaded:", file)
 
@@ -71,16 +70,16 @@ for batch in test_text_loader:
         text_embeddings.append(output.tolist())
 
 
-from sklearn.metrics.pairwise import cosine_similarity
+# from sklearn.metrics.pairwise import cosine_similarity
 
-similarity = cosine_similarity(text_embeddings, graph_embeddings)
+# similarity = cosine_similarity(text_embeddings, graph_embeddings)
 
 
-solution = pd.DataFrame(similarity)
-solution['ID'] = solution.index
-solution = solution[['ID'] + [col for col in solution.columns if col!='ID']]
-solution.to_csv('submission2201.csv', index=False)
+# solution = pd.DataFrame(similarity)
+# solution['ID'] = solution.index
+# solution = solution[['ID'] + [col for col in solution.columns if col!='ID']]
+# solution.to_csv('submission2201.csv', index=False)
         
-#make_predictions(text_embeddings, graph_embeddings)
+make_predictions(text_embeddings, graph_embeddings)
 
 print("Predictions ready!")
