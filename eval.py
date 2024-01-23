@@ -103,6 +103,6 @@ for batch in test_text_loader:
 # solution = solution[['ID'] + [col for col in solution.columns if col!='ID']]
 # solution.to_csv('submission2201.csv', index=False)
         
-make_predictions(text_embeddings, graph_embeddings)
+make_predictions(graph_embeddings, text_embeddings)
 
 print("Predictions ready!")
