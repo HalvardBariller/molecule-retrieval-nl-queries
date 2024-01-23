@@ -4,6 +4,8 @@ from torch_geometric.loader import DataLoader
 from torch.utils.data import DataLoader as TorchDataLoader
 from sklearn.metrics import label_ranking_average_precision_score
 from models.Model import Model
+from models.graph_encoders import GraphEncoder, GraphormerEncoder
+from models.text_encoders import TextEncoder
 import numpy as np
 from transformers import AutoTokenizer
 import torch
@@ -11,6 +13,7 @@ from torch import optim
 from torch.cuda.amp import GradScaler, autocast
 import time
 import os
+import sys
 import pandas as pd
 import wandb
 from utils import compute_embeddings_valid, compute_similarities_LRAP, make_predictions
@@ -36,6 +39,7 @@ print("Device:", device)
 ## Hyperparameters
 wandb.init(
         project="2nd run - ALTEGRAD",
+        name=sys.argv[1] if len(sys.argv) >= 2 else None,
         config={
             "epochs": 30,
             "batch_size": 32,
@@ -62,7 +66,9 @@ num_workers = 12
 val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, num_workers = num_workers, pin_memory = True)
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers = num_workers, pin_memory = True)
 
-model = Model(model_name=model_name, num_node_features=300, nout=768, nhid=300, graph_hidden_channels=300) # nout = bert model hidden dim
+graph_encoder = GraphEncoder(num_node_features=300, nout=768, nhid=300, graph_hidden_channels=300) # nout = bert model hidden dim
+text_encoder = TextEncoder(model_name)
+model = Model(graph_encoder, text_encoder)
 model.to(device)
 
 optimizer = optim.AdamW(model.parameters(), lr=learning_rate,
