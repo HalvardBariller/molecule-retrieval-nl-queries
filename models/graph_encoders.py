@@ -38,14 +38,18 @@ class GraphEncoder(nn.Module):
 class Graphormer_AttentionHead(nn.Module):
     def __init__(self, hidden_dim, dim_k):
         super(Graphormer_AttentionHead, self).__init__()
+        self.dim_k = dim_k
         self.proj_Q = nn.Linear(hidden_dim, dim_k)
         self.proj_K = nn.Linear(hidden_dim, dim_k)
         self.proj_V = nn.Linear(hidden_dim, dim_k)
     
-    def forward(self, H, shortest_path_matrix):
+    def forward(self, H, b_matrix, attention_mask):
         Q = self.proj_Q(H)
         K = self.proj_K(H)
-        raise NotImplementedError
+        logits = torch.where(attention_mask, torch.mm(Q, torch.transpose(K, 0, 1))/self.dim_k**.5 + b_matrix, float("-inf"))
+        weights = torch.softmax(logits, -1)
+        V = self.proj_V(H)
+        return torch.mm(weights, V)
 
 
 
@@ -60,10 +64,12 @@ class Graphormer_MHA(nn.Module):
         self.heads = []
         for _ in range(num_heads):
             self.heads.append(Graphormer_AttentionHead(self.hidden_dim, self.dim_k))
+        self.heads = nn.ModuleList(self.heads)
         self.proj_out = nn.Linear(hidden_dim, hidden_dim)
         
-    def forward(self, H, shortest_path_matrix):
-        raise NotImplementedError
+    def forward(self, H, b_matrix, attention_mask):
+        outs = [head(H, b_matrix, attention_mask) for head in self.heads]
+        return self.proj_out(torch.cat(outs, -1))
 
 class Graphormer_EncoderBlock(nn.Module):
     def __init__(self, hidden_dim, num_heads, dim_ff):
@@ -73,9 +79,9 @@ class Graphormer_EncoderBlock(nn.Module):
         self.ffn_lin1 = nn.Linear(hidden_dim, dim_ff)
         self.ffn_lin2 = nn.Linear(dim_ff, hidden_dim)
 
-    def forward(self, H, shortest_path_matrix):
-        x = self.mha(F.layer_norm(H, self.hidden_dim), shortest_path_matrix) + H
-        x1 = F.relu(self.ffn_lin1(F.layer_norm(x, self.hidden_dim)))
+    def forward(self, H, b_matrix, attention_mask):
+        x = self.mha(F.layer_norm(H, (self.hidden_dim,)), b_matrix, attention_mask) + H
+        x1 = F.relu(self.ffn_lin1(F.layer_norm(x, (self.hidden_dim,))))
         x2 = self.ffn_lin2(x1)
         return x+x2
 
@@ -83,27 +89,54 @@ class Graphormer_EncoderBlock(nn.Module):
 
 
 class GraphormerEncoder(nn.Module):
-    def __init__(self, num_layers, num_node_features, hidden_dim, num_heads, dim_ff=2048, max_degree=100):
+    def __init__(self, num_layers, num_node_features, hidden_dim, num_heads, dim_ff=2048, max_degree=100, max_sp_distance=100):
         super(GraphormerEncoder, self).__init__()
         self.num_layers = num_layers
         self.hidden_dim = hidden_dim
         self.max_degree = max_degree
+        self.max_sp_distance = max_sp_distance
         self.init_proj = nn.Linear(num_node_features, hidden_dim)
         self.layers = []
         for _ in range(num_layers):
             self.layers.append(Graphormer_EncoderBlock(hidden_dim, num_heads, dim_ff))
+        self.layers = nn.ModuleList(self.layers)
         self.centrality_encoding = nn.Embedding(max_degree+1, self.hidden_dim)
+        self.distance_biases = nn.Parameter(torch.randn((max_sp_distance+2,))) # last element is for unconnected pairs of nodes
+        self.virtnode_dist_bias = nn.Parameter(torch.tensor(0.0))
 
     def forward(self, graph_batch):
         x = graph_batch.x
-        sp_matrix = utils.compute_shortest_path_matrix(graph_batch)
+        sp_matrix = utils.compute_shortest_path_matrix(graph_batch).to(x.device)
+        sp_matrix = torch.min(sp_matrix, torch.tensor(self.max_sp_distance, device=x.device))
         transform = utils.VirtualNodeBatch()
         graph_batch = transform(graph_batch)
-        degrees = torch.minimum(torch.tensor(self.max_degree), torch.tensor(degree(graph_batch.edge_index[0], graph_batch.num_nodes)))
+
+        # Weight mask for zeroing attention weights that span across two different graphs
+        attention_mask = graph_batch.batch[:, None] == graph_batch.batch[None, :]
+
+        # b matrix, shared by all layers
+        ii_orig = torch.arange(0, graph_batch.orig_num_nodes, device=x.device)[:, None]
+        jj_orig = torch.arange(0, graph_batch.orig_num_nodes, device=x.device)[None, :]
+        B_matrix = torch.full((graph_batch.num_nodes, graph_batch.num_nodes), self.distance_biases[-1].item(), device=x.device)
+        B_matrix[ii_orig, jj_orig] = self.distance_biases[sp_matrix[ii_orig, jj_orig]]
+
+        ii = torch.arange(0, graph_batch.num_nodes, device=x.device)[:, None]
+        jj = torch.arange(0, graph_batch.num_nodes, device=x.device)[None, :]
+        virtual_edges = torch.argwhere(( (graph_batch.is_virtual_node[ii]) & (~(graph_batch.is_virtual_node[jj])) & 
+                (graph_batch.batch[ii] == graph_batch.batch[jj]) ) |
+                ( (~graph_batch.is_virtual_node[ii]) & (graph_batch.is_virtual_node[jj]) & 
+                (graph_batch.batch[ii] == graph_batch.batch[jj]) ))
+        B_matrix[virtual_edges.T[0], virtual_edges.T[1]] = self.virtnode_dist_bias
+
+        B_matrix[torch.arange(graph_batch.num_nodes, device=x.device), torch.arange(graph_batch.num_nodes, device=x.device)] = self.distance_biases[0]
+
+        #print(graph_batch, graph_batch.num_nodes, torch.max(graph_batch.edge_index), graph_batch.is_node_attr('x'))
+        degrees = torch.minimum(torch.tensor(self.max_degree, dtype=torch.long, device=x.device), torch.tensor(degree(graph_batch.edge_index[0], graph_batch.num_nodes), dtype=torch.long, device=x.device))
         x = self.init_proj(x)
+        # Initial embedding of virtual nodes
         virtual_node_init = torch.zeros((graph_batch.batch_size, self.hidden_dim), device=x.device)
         x = torch.cat([x, virtual_node_init], dim=0)
-        x += self.centrality_encoding[degrees]
+        x += self.centrality_encoding(degrees)
         for i in range(self.num_layers):
-            x = self.layers[i](x, sp_matrix)
+            x = self.layers[i](x, B_matrix, attention_mask)
         return x[graph_batch.virtual_node_index]        

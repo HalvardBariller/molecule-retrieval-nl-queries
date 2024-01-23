@@ -12,6 +12,11 @@ import pandas as pd
 import wandb
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.metrics.pairwise import pairwise_distances
+import networkx as nx
+from torch_geometric.utils.convert import to_networkx
+from torch_geometric.transforms import BaseTransform
+from torch_geometric.data import Data
+import copy
 
 
 
@@ -128,3 +133,74 @@ def make_predictions(graph_embeddings, text_embeddings):
     
     
 
+def compute_shortest_path_matrix(graph, to_undirected=True):
+    nx_graph = to_networkx(graph, to_undirected=to_undirected)
+    sp = nx.shortest_path_length(nx_graph)
+    ret = -1*torch.ones((nx_graph.number_of_nodes(), nx_graph.number_of_nodes()), dtype=torch.long)
+    for source, lendict in sp:
+        for target, dist in lendict.items():
+            ret[source, target] = dist
+    return ret
+
+# An adaptation of torch_geometric.transforms.virtual_node.VirtualNode for batched inputs.
+class VirtualNodeBatch(BaseTransform):
+    def forward(self, data: Data) -> Data:
+        assert data.edge_index is not None
+        row, col = data.edge_index
+        batch = data.batch
+        edge_type = data.get('edge_type', torch.zeros_like(row))
+        num_nodes = data.num_nodes
+        assert num_nodes is not None
+
+        arange = torch.arange(num_nodes, device=row.device)
+        full = batch + num_nodes
+        row = torch.cat([row, arange, full], dim=0)
+        col = torch.cat([col, full, arange], dim=0)
+        edge_index = torch.stack([row, col], dim=0)
+
+        new_type = edge_type.new_full((num_nodes, ), int(edge_type.max()) + 1)
+        edge_type = torch.cat([edge_type, new_type, new_type + 1], dim=0)
+
+        new_batch = torch.arange(data.batch_size, device=batch.device)
+        batch = torch.cat([batch, new_batch], dim=0)
+        
+        virtual_node_index = torch.arange(num_nodes, num_nodes+data.batch_size, device=batch.device)
+        is_virtual_node = torch.zeros((num_nodes+data.batch_size,), dtype=torch.bool, device=batch.device)
+        is_virtual_node[num_nodes:] = True
+
+        old_data = copy.copy(data)
+        for key, value in old_data.items():
+            if key == 'edge_index' or key == 'edge_type' or key == 'batch':
+                continue
+
+            if isinstance(value, torch.Tensor):
+                dim = old_data.__cat_dim__(key, value)
+                size = list(value.size())
+
+                fill_value = None
+                if key == 'edge_weight':
+                    size[dim] = 2 * num_nodes
+                    fill_value = 1.
+                elif old_data.is_edge_attr(key):
+                    size[dim] = 2 * num_nodes
+                    fill_value = 0.
+                elif old_data.is_node_attr(key):
+                    size[dim] = data.batch_size
+                    fill_value = 0.
+
+                if fill_value is not None:
+                    new_value = value.new_full(size, fill_value)
+                    data[key] = torch.cat([value, new_value], dim=dim)
+
+        data.edge_index = edge_index
+        data.edge_type = edge_type
+        data.batch = batch
+        data.virtual_node_index = virtual_node_index
+        data.is_virtual_node = is_virtual_node
+
+        if 'num_nodes' in data:
+            data.num_nodes = num_nodes + data.batch_size
+        
+        data.orig_num_nodes = num_nodes
+
+        return data

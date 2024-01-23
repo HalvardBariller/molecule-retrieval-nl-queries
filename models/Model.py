@@ -7,7 +7,7 @@ from transformers import AutoModel
 
 import sys
 
-from .graph_encoders import GraphEncoder
+from .graph_encoders import GraphEncoder, GraphormerEncoder
 from .text_encoders import TextEncoder
 
 
