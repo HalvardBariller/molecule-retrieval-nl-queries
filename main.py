@@ -18,11 +18,17 @@ import pandas as pd
 import wandb
 from tqdm import tqdm
 from utils import compute_embeddings_valid, compute_similarities_LRAP, make_predictions
+import argparse
 
 from losses.contrastive_loss import contrastive_loss
 
 import warnings
 warnings.simplefilter("ignore", category=UserWarning)
+
+argparser = argparse.ArgumentParser(description="Trains a model.")
+argparser.add_argument("-n", "--name", help="Run name (for Weights and Biases)")
+argparser.add_argument("-m", "--pretrained-model", help="Load pretrained model from file")
+args = argparser.parse_args()
 
 ## Model
 #model_name = 'distilbert-base-uncased'
@@ -40,7 +46,7 @@ print("Device:", device)
 ## Hyperparameters
 wandb.init(
         project="2nd run - ALTEGRAD",
-        name=sys.argv[1] if len(sys.argv) >= 2 else None,
+        name=args.name,
         config={
             "epochs": 30,
             "batch_size": 32,
@@ -73,11 +79,19 @@ text_encoder = TextEncoder(model_name)
 model = Model(graph_encoder, text_encoder)
 model.to(device)
 
+if args.pretrained_model is not None:
+    print("Model path:", args.pretrained_model)
+    print('Loading model...')
+    checkpoint = torch.load(args.pretrained_model, map_location=device)
+    model.load_state_dict(checkpoint['model_state_dict'])
+    print("Model loaded")
+
 optimizer = optim.AdamW(model.parameters(), lr=learning_rate,
                                 betas=(0.9, 0.98),
                                 weight_decay=0.01)
 #scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=30, gamma=0.1)
-scheduler = torch.optim.lr_scheduler.LinearLR(optimizer, start_factor=1.0, end_factor=0.3, total_iters=nb_epochs)
+start_factor = 1.0 if args.pretrained_model is None else 0.3
+scheduler = torch.optim.lr_scheduler.LinearLR(optimizer, start_factor=start_factor, end_factor=0.3, total_iters=nb_epochs)
 scaler = GradScaler()
 
 
