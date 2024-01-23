@@ -148,7 +148,7 @@ for i in range(nb_epochs):
 
     # LRAP computation
     graph_embeddings, text_embeddings, y_true = compute_embeddings_valid(model, val_dataset, device, batch_size)
-    lrap_current_valid = compute_similarities_LRAP(graph_embeddings, text_embeddings, y_true)
+    lrap_current_valid, lrap_current_valid_norm = compute_similarities_LRAP(graph_embeddings, text_embeddings, y_true)
     print("Validation LRAP Score:", lrap_current_valid)
 
     # Save model checkpoint
@@ -172,7 +172,8 @@ for i in range(nb_epochs):
                "val_loss": val_loss, 
                "best_val_loss": best_validation_loss,
                #"LRAP_train": lrap_current_train,
-              "LRAP_valid": lrap_current_valid})
+              "LRAP_valid": lrap_current_valid,
+              "LRAP_valid_normalized": lrap_current_valid_norm})
     
     if patience_counter >= patience:
         print(f'Early stopping triggered after epoch {i+1}. Ending training.')
