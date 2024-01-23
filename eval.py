@@ -21,14 +21,15 @@ import warnings
 warnings.simplefilter("ignore", category=UserWarning)
 
 ## Model
-model_name = 'distilbert-base-uncased'
+#model_name = 'distilbert-base-uncased'
+model_name = 'allenai/scibert_scivocab_uncased'
 
-batch_size = 64
+batch_size = 32
 
 for file in os.listdir('./'):
     if 'model.pt' in file:
         save_path = os.path.join('./', file)    
-        print("Best model loaded")
+        print("Best model loaded:", file)
 
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 gt = np.load("./data/token_embedding_dict.npy", allow_pickle=True)[()]
@@ -74,11 +75,12 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 similarity = cosine_similarity(text_embeddings, graph_embeddings)
 
+
 solution = pd.DataFrame(similarity)
 solution['ID'] = solution.index
 solution = solution[['ID'] + [col for col in solution.columns if col!='ID']]
-#solution.to_csv('submission.csv', index=False)
+solution.to_csv('submission2201.csv', index=False)
         
-make_predictions(text_embeddings, graph_embeddings)
+#make_predictions(text_embeddings, graph_embeddings)
 
 print("Predictions ready!")

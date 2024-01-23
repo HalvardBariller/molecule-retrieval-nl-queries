@@ -21,9 +21,9 @@ import warnings
 warnings.simplefilter("ignore", category=UserWarning)
 
 ## Model
-model_name = 'distilbert-base-uncased'
-# model_name = 'allenai/scibert_scivocab_uncased'
-
+#model_name = 'distilbert-base-uncased'
+model_name = 'allenai/scibert_scivocab_uncased'
+#model_name = 'DeepChem/ChemBERTa-77M-MLM'
 
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 gt = np.load("./data/token_embedding_dict.npy", allow_pickle=True)[()]
@@ -37,8 +37,8 @@ print("Device:", device)
 wandb.init(
         project="2nd run - ALTEGRAD",
         config={
-            "epochs": 20,
-            "batch_size": 64,
+            "epochs": 30,
+            "batch_size": 32,
             "lr": 2e-5
             })
 config = wandb.config
@@ -201,13 +201,13 @@ for batch in test_text_loader:
         text_embeddings.append(output.tolist())
 
 
-# from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.metrics.pairwise import cosine_similarity
 
-# similarity = cosine_similarity(text_embeddings, graph_embeddings)
+similarity = cosine_similarity(text_embeddings, graph_embeddings)
 
-# solution = pd.DataFrame(similarity)
-# solution['ID'] = solution.index
-# solution = solution[['ID'] + [col for col in solution.columns if col!='ID']]
-# solution.to_csv('submission.csv', index=False)
+solution = pd.DataFrame(similarity)
+solution['ID'] = solution.index
+solution = solution[['ID'] + [col for col in solution.columns if col!='ID']]
+solution.to_csv('submission.csv', index=False)
         
-make_predictions(text_embeddings, graph_embeddings)
+#make_predictions(text_embeddings, graph_embeddings)

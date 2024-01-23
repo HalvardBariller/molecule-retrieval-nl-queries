@@ -1,5 +1,5 @@
 from dataloader.dataloader import GraphTextDataset, GraphDataset, TextDataset
-from torch_geometric.data import DataLoader
+from torch_geometric.loader import DataLoader
 from torch.utils.data import DataLoader as TorchDataLoader
 from sklearn.metrics import label_ranking_average_precision_score
 from models.Model import Model
@@ -13,11 +13,7 @@ import pandas as pd
 import wandb
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.metrics.pairwise import pairwise_distances
-import networkx as nx
-from torch_geometric.utils.convert import to_networkx
-from torch_geometric.transforms import BaseTransform
-from torch_geometric.data import Data
-import copy
+
 
 
 def compute_embeddings_valid(model, val_dataset, device, batch_size):
@@ -91,7 +87,8 @@ def compute_similarities_LRAP(graph_embeddings, text_embeddings, y_true):
     val_lrap_normalized = label_ranking_average_precision_score(y_true, similarity_normalized)
     print('LRAP:', val_lrap)
     print('LRAP normalized:', val_lrap_normalized)
-    
+
+    #print("Validation LRAP Score:", val_lrap)
     return val_lrap
 
 
@@ -111,85 +108,18 @@ def make_predictions(graph_embeddings, text_embeddings):
     graph_embeddings_centered = graph_embeddings - np.mean(graph_embeddings, axis=0)
     similarity_adjcos = cosine_similarity(text_embeddings_centered, graph_embeddings_centered)
     # Dot product
-    similarity_dot = np.dot(text_embeddings, np.transpose(graph_embeddings))
+    similarity_dot = np.matmul(text_embeddings, np.transpose(graph_embeddings))
     # Euclidean similarity
     similarity_euc = - pairwise_distances(text_embeddings, graph_embeddings, metric='euclidean')
     # Minkowski similarity
     similarity_min = - pairwise_distances(text_embeddings, graph_embeddings, metric='minkowski')
     
     similarity = np.mean([similarity_cos, similarity_adjcos, similarity_dot, similarity_euc, similarity_min], axis=0)
-
+    
     solution = pd.DataFrame(similarity)
     solution['ID'] = solution.index
     solution = solution[['ID'] + [col for col in solution.columns if col!='ID']]
-    solution.to_csv('submission.csv', index=False)
+    solution.to_csv('submission2.csv', index=False)
+    
+    
 
-def compute_shortest_path_matrix(graph, to_undirected=True):
-    nx_graph = to_networkx(graph, to_undirected=to_undirected)
-    sp = nx.shortest_path_length(nx_graph)
-    ret = -1*torch.ones((nx_graph.number_of_nodes(), nx_graph.number_of_nodes()), dtype=torch.long)
-    for source, lendict in sp:
-        for target, dist in lendict.items():
-            ret[source, target] = dist
-    return ret
-
-# An adaptation of torch_geometric.transforms.virtual_node.VirtualNode for batched inputs.
-class VirtualNodeBatch(BaseTransform):
-    def forward(self, data: Data) -> Data:
-        assert data.edge_index is not None
-        row, col = data.edge_index
-        batch = data.batch
-        edge_type = data.get('edge_type', torch.zeros_like(row))
-        num_nodes = data.num_nodes
-        assert num_nodes is not None
-
-        arange = torch.arange(num_nodes, device=row.device)
-        full = batch + num_nodes + 1
-        row = torch.cat([row, arange, full], dim=0)
-        col = torch.cat([col, full, arange], dim=0)
-        edge_index = torch.stack([row, col], dim=0)
-
-        new_type = edge_type.new_full((num_nodes, ), int(edge_type.max()) + 1)
-        edge_type = torch.cat([edge_type, new_type, new_type + 1], dim=0)
-
-        new_batch = torch.arange(data.batch_size+1, device=batch.device)
-        batch = torch.cat([batch, new_batch], dim=0)
-        
-        virtual_node_index = torch.arange(num_nodes, num_nodes+data.batch_size, device=batch.device)
-        is_virtual_node = torch.zeros((num_nodes+torch.batch_size,), dtype=torch.bool, device=batch.device)
-        is_virtual_node[num_nodes:] = True
-
-        old_data = copy.copy(data)
-        for key, value in old_data.items():
-            if key == 'edge_index' or key == 'edge_type' or key == 'batch':
-                continue
-
-            if isinstance(value, torch.Tensor):
-                dim = old_data.__cat_dim__(key, value)
-                size = list(value.size())
-
-                fill_value = None
-                if key == 'edge_weight':
-                    size[dim] = 2 * num_nodes
-                    fill_value = 1.
-                elif old_data.is_edge_attr(key):
-                    size[dim] = 2 * num_nodes
-                    fill_value = 0.
-                elif old_data.is_node_attr(key):
-                    size[dim] = 1
-                    fill_value = 0.
-
-                if fill_value is not None:
-                    new_value = value.new_full(size, fill_value)
-                    data[key] = torch.cat([value, new_value], dim=dim)
-
-        data.edge_index = edge_index
-        data.edge_type = edge_type
-        data.batch = batch
-        data.virtual_node_index = virtual_node_index
-        data.is_virtual_node = is_virtual_node
-
-        if 'num_nodes' in data:
-            data.num_nodes = num_nodes + 1
-
-        return data
