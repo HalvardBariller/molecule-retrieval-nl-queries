@@ -23,10 +23,13 @@ from losses.contrastive_loss import contrastive_loss
 
 import warnings
 warnings.simplefilter("ignore", category=UserWarning)
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 ## Model
 #model_name = 'distilbert-base-uncased'
-model_name = 'allenai/scibert_scivocab_uncased'
+#model_name = 'allenai/scibert_scivocab_uncased'
+#model_name = 'allenai/biomed_roberta_base'
+model_name = 'roberta-base'
 #model_name = 'DeepChem/ChemBERTa-77M-MLM'
 
 tokenizer = AutoTokenizer.from_pretrained(model_name)
@@ -43,8 +46,8 @@ wandb.init(
         name=sys.argv[1] if len(sys.argv) >= 2 else None,
         config={
             "epochs": 30,
-            "batch_size": 32,
-            "lr": 2e-5
+            "batch_size": 64,
+            "lr": 4e-5
             })
 config = wandb.config
 
@@ -67,16 +70,21 @@ num_workers = 12
 val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, num_workers = num_workers, pin_memory = True)
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers = num_workers, pin_memory = True)
 
-graph_encoder = GINEncoder(num_layers=5, num_node_features=300, interm_hidden_dim=600, hidden_dim=300, out_interm_dim=600, out_dim=768) # nout = bert model hidden dim
+graph_encoder = GINEncoder(num_layers=6, num_node_features=300, interm_hidden_dim=600, hidden_dim=300, out_interm_dim=600, out_dim=768) # nout = bert model hidden dim
+#graph_encoder = GraphormerEncoder(num_layers = 6, num_node_features = 300, hidden_dim = 768, num_heads = 32)
+#graph_encoder = GraphEncoder(num_node_features=300, nout=768, nhid=300, graph_hidden_channels=300)
+
 text_encoder = TextEncoder(model_name)
+
 model = Model(graph_encoder, text_encoder)
 model.to(device)
 
 optimizer = optim.AdamW(model.parameters(), lr=learning_rate,
                                 betas=(0.9, 0.98),
                                 weight_decay=0.01)
-#scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=30, gamma=0.1)
-scheduler = torch.optim.lr_scheduler.LinearLR(optimizer, start_factor=1.0, end_factor=0.3, total_iters=nb_epochs)
+
+scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.6, patience=3, verbose=True)
+# scheduler = torch.optim.lr_scheduler.LinearLR(optimizer, start_factor=1.0, end_factor=0.2, total_iters=nb_epochs)
 scaler = GradScaler()
 
 

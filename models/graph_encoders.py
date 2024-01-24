@@ -2,7 +2,7 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 import utils
-from torch_geometric.nn import GCNConv, GINConv
+from torch_geometric.nn import GCNConv, GINConv, SAGEConv
 from torch_geometric.nn import global_mean_pool, global_add_pool
 from torch_geometric.utils import degree
 from transformers import AutoModel
@@ -186,3 +186,39 @@ class GINEncoder(nn.Module):
             readouts.append(global_add_pool(x, batch))
         x = torch.cat(readouts, dim=-1)
         return self.finalMLP(x)
+
+
+
+
+
+
+### Node Embedding Models ###
+    
+class GraphSAGE(nn.Module):
+    def __init__(self, num_node_features, nout, nhid, nhid_ff, num_layers = 2):
+        super(GraphSAGE, self).__init__()
+        self.num_layers = num_layers
+        self.convs = nn.ModuleList()
+        self.convs.append(SAGEConv(num_node_features, nhid))
+        for i in range(num_layers - 2):
+            self.convs.append(SAGEConv(nhid, nhid))
+        self.convs.append(SAGEConv(nhid, nhid_ff))
+        self.final_post_process1 = nn.Linear(nhid_ff, nhid_ff)
+        self.final_post_process2 = nn.Linear(nhid_ff, nout)
+
+    def forward(self, graph_batch):
+        x = graph_batch.x
+        edge_index = graph_batch.edge_index
+        batch = graph_batch.batch
+        for i, conv in enumerate(self.convs):
+            x = conv(x, edge_index)
+            if i != self.num_layers - 1:
+                x = F.relu(x)
+                x = F.dropout(x, training=self.training)
+            else:
+                x = F.normalize(x, p=2, dim=-1)
+        x = global_mean_pool(x, batch)
+        x = self.final_post_process1(x).relu()
+        x = self.final_post_process2(x)
+        return x
+

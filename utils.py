@@ -81,9 +81,10 @@ def compute_similarities_LRAP(graph_embeddings, text_embeddings, y_true):
 
     similarity_normalized = np.mean([similarity_cos / np.max(similarity_cos, axis=1)[:,None],
                                     similarity_adjcos / np.max(similarity_adjcos, axis=1)[:,None],
-                                    similarity_dot / np.max(similarity_dot, axis=1)[:,None],
-                                    similarity_euc / np.max(similarity_euc, axis=1)[:,None],
-                                    similarity_min / np.max(similarity_min, axis=1)[:,None]], axis=0)
+                                    similarity_dot / np.max(similarity_dot, axis=1)[:,None]
+                                    #similarity_euc / np.max(similarity_euc, axis=1)[:,None],
+                                    #similarity_min / np.max(similarity_min, axis=1)[:,None]
+                                    ], axis=0)
                                         
 
     # Compute LRAP
@@ -128,9 +129,10 @@ def make_predictions(graph_embeddings, text_embeddings):
 
     similarity_normalized = np.mean([similarity_cos / np.max(similarity_cos, axis=1)[:,None],
                                     similarity_adjcos / np.max(similarity_adjcos, axis=1)[:,None],
-                                    similarity_dot / np.max(similarity_dot, axis=1)[:,None],
-                                    similarity_euc / np.max(similarity_euc, axis=1)[:,None],
-                                    similarity_min / np.max(similarity_min, axis=1)[:,None]], axis=0)
+                                    similarity_dot / np.max(similarity_dot, axis=1)[:,None]
+                                    #similarity_euc / np.max(similarity_euc, axis=1)[:,None],
+                                    #similarity_min / np.max(similarity_min, axis=1)[:,None]
+                                    ], axis=0)
     
     solution = pd.DataFrame(similarity_normalized)
     solution['ID'] = solution.index
