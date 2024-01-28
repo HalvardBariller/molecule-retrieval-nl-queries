@@ -110,6 +110,7 @@ count_iter = 0
 time1 = time.time()
 printEvery = 50
 best_validation_loss = 1000000
+best_lrap = 0
 
 for i in range(nb_epochs):
     print('-----EPOCH{}-----'.format(i+1))
@@ -171,11 +172,14 @@ for i in range(nb_epochs):
     # LRAP computation
     graph_embeddings, text_embeddings, y_true = compute_embeddings_valid(model, val_dataset, device, batch_size)
     lrap_current_valid, lrap_current_valid_norm = compute_similarities_LRAP(graph_embeddings, text_embeddings, y_true)
+    best_lrap = max(best_lrap, max(lrap_current_valid, lrap_current_valid_norm))
     print("Validation LRAP Score:", lrap_current_valid)
 
     # Save model checkpoint
-    if best_validation_loss==val_loss:
-        print('validation loss improved saving checkpoint...')
+    if best_lrap == max(lrap_current_valid, lrap_current_valid_norm):
+        print("Score improved, saving checkpoint...")
+    #if best_validation_loss==val_loss:
+        #print('validation loss improved saving checkpoint...')
         # Remove previous checkpoints
         for file in os.listdir('./'):
             if 'model.pt' in file:
