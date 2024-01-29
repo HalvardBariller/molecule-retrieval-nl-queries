@@ -4,7 +4,7 @@ from torch_geometric.loader import DataLoader
 from torch.utils.data import DataLoader as TorchDataLoader
 from sklearn.metrics import label_ranking_average_precision_score
 from models.Model import Model
-from models.graph_encoders import GraphEncoder, GraphormerEncoder, GINEncoder
+from models.graph_encoders import GCNEncoder, GraphormerEncoder, GINEncoder
 from models.text_encoders import TextEncoder
 import numpy as np
 from transformers import AutoTokenizer
@@ -78,7 +78,7 @@ train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, nu
 
 graph_encoder = GINEncoder(num_layers=6, num_node_features=300, interm_hidden_dim=600, hidden_dim=300, out_interm_dim=600, out_dim=768) # nout = bert model hidden dim
 #graph_encoder = GraphormerEncoder(num_layers = 6, num_node_features = 300, hidden_dim = 768, num_heads = 32)
-#graph_encoder = GraphEncoder(num_node_features=300, nout=768, nhid=300, graph_hidden_channels=300)
+#graph_encoder = GCNEncoder(num_node_features=300, n_layers_conv=5, n_layers_out=3, nout=768, nhid=300, graph_hidden_channels=300)
 
 text_encoder = TextEncoder(model_name)
 

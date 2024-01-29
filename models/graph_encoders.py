@@ -9,9 +9,9 @@ from transformers import AutoModel
 
 
 
-class GraphEncoder(nn.Module):
+class GCNEncoder(nn.Module):
     def __init__(self, num_node_features, n_layers_conv, n_layers_out, nout, nhid, graph_hidden_channels):
-        super(GraphEncoder, self).__init__()
+        super(GCNEncoder, self).__init__()
         if n_layers_conv < 1:
             raise ValueError("GCN encoder must use at least one convolution layer")
         if n_layers_out < 2:

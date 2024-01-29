@@ -1,17 +1,6 @@
 from torch import nn
 import torch.nn.functional as F
 
-from torch_geometric.nn import GCNConv
-from torch_geometric.nn import global_mean_pool
-from transformers import AutoModel
-
-import sys
-
-from .graph_encoders import GraphEncoder, GraphormerEncoder
-from .text_encoders import TextEncoder
-
-
-
 class Model(nn.Module):
     def __init__(self, graph_encoder, text_encoder):
         super(Model, self).__init__()
