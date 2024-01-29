@@ -103,7 +103,7 @@ def compute_similarities_LRAP(graph_embeddings, text_embeddings, y_true):
     return val_lrap, val_lrap_normalized
 
 
-def make_predictions(graph_embeddings, text_embeddings):
+def make_predictions(graph_embeddings, text_embeddings, save_file = True):
     """Make predictions on the test set and save them to a CSV file.
     --------------
     Parameters:
@@ -133,11 +133,26 @@ def make_predictions(graph_embeddings, text_embeddings):
                                     #similarity_euc / np.max(similarity_euc, axis=1)[:,None],
                                     #similarity_min / np.max(similarity_min, axis=1)[:,None]
                                     ], axis=0)
+    if save_file:
+        solution = pd.DataFrame(similarity_normalized)
+        solution['ID'] = solution.index
+        solution = solution[['ID'] + [col for col in solution.columns if col!='ID']]
+        solution.to_csv('submission.csv', index=False)
+    else:
+        return similarity_normalized
     
-    solution = pd.DataFrame(similarity_normalized)
+
+def prepare_submission_file(similarities, submission_file_name='submission'):
+    """Prepare the submission file.
+    --------------
+    Parameters:
+    similarities: numpy array
+        Array of similarities.
+    """
+    solution = pd.DataFrame(similarities)
     solution['ID'] = solution.index
     solution = solution[['ID'] + [col for col in solution.columns if col!='ID']]
-    solution.to_csv('submission.csv', index=False)
+    solution.to_csv(submission_file_name + '.csv', index=False)
     
     
 
@@ -212,3 +227,4 @@ class VirtualNodeBatch(BaseTransform):
         data.orig_num_nodes = num_nodes
 
         return data
+
