@@ -137,7 +137,7 @@ else:
 for i in range(nb_epochs):
     print('-----EPOCH{}-----'.format(i+1))
     model.train()
-    for i, batch in tqdm(enumerate(train_loader)):
+    for j, batch in tqdm(enumerate(train_loader)):
         input_ids = batch.input_ids
         batch.pop('input_ids')
         attention_mask = batch.attention_mask
@@ -151,7 +151,7 @@ for i in range(nb_epochs):
                                     attention_mask.to(device))
 
             # Negative sampling contrastive loss
-            if i == 0:
+            if j == 0:
                 x_text_prev = x_text
             keep_text = torch.randint(0, 2, (x_text.shape[0],), device=device)
             x_text_negative = x_text * keep_text[:, None] + x_text_prev * (1 - keep_text[:, None])

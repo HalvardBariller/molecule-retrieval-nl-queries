@@ -77,7 +77,9 @@ def compute_similarities_LRAP(graph_embeddings, text_embeddings, y_true):
     # Minkowski similarity
     similarity_min = - pairwise_distances(text_embeddings, graph_embeddings, metric='minkowski')
     
-    similarity = np.mean([similarity_cos, similarity_adjcos, similarity_dot, similarity_euc, similarity_min], axis=0)
+    similarity = np.mean([similarity_cos, similarity_adjcos, similarity_dot
+                           #similarity_euc, similarity_min
+                           ], axis=0)
 
     similarity_normalized = np.mean([similarity_cos / np.max(similarity_cos, axis=1)[:,None],
                                     similarity_adjcos / np.max(similarity_adjcos, axis=1)[:,None],
