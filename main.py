@@ -215,9 +215,9 @@ for i in range(nb_epochs):
               "LRAP_valid": lrap_current_valid,
               "LRAP_valid_normalized": lrap_current_valid_norm})
     
-    if patience_counter >= patience:
-        print(f'Early stopping triggered after epoch {i+1}. Ending training.')
-        break
+    #if patience_counter >= patience:
+    #    print(f'Early stopping triggered after epoch {i+1}. Ending training.')
+    #    break
 
     scheduler.step()
 
