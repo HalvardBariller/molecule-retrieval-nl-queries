@@ -18,6 +18,7 @@ import wandb
 from tqdm import tqdm
 from utils import compute_embeddings_valid, compute_similarities_LRAP, make_predictions
 import argparse
+from datetime import datetime
 
 from losses.contrastive_loss import contrastive_loss, contrastive_loss_with_cosine
 
@@ -46,7 +47,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print("Device:", device)
 
 ## Hyperparameters
-wandb.init(
+run = wandb.init(
         project="2nd run - ALTEGRAD",
         name=args.name,
         config={
@@ -57,6 +58,7 @@ wandb.init(
             "lr_graph": 1e-4
             })
 config = wandb.config
+api = wandb.Api(overrides={"project": "2nd run - ALTEGRAD", "entity": "vdng9338"})
 
 # nb_epochs = 5
 # batch_size = 32
@@ -125,6 +127,12 @@ time1 = time.time()
 printEvery = 50
 best_validation_loss = 1000000
 best_lrap = 0
+
+curr_date = datetime.now().strftime("%y-%m-%dT%H-%M-%S")
+if args.name is not None:
+    artifact_name = f"{args.name}-{curr_date}.pt"
+else:
+    artifact_name = f"model-{curr_date}.pt"
 
 for i in range(nb_epochs):
     print('-----EPOCH{}-----'.format(i+1))
@@ -217,6 +225,10 @@ for i in range(nb_epochs):
         'loss': loss,
         }, save_path)
         print('checkpoint saved to: {}'.format(save_path))
+        artifact = wandb.Artifact(name=artifact_name, type="model")
+        artifact.add_file(local_path=save_path)
+        run.log_artifact(artifact)
+        print("Artifact uploaded")
 
     wandb.log({"loss": loss, 
                "val_loss": val_loss, 
