@@ -98,8 +98,8 @@ optimizer = optim.AdamW(model.parameters(), lr=learning_rate,
 
 
 start_factor = 1.0 if args.pretrained_model is None else 0.3
-scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.6, patience=3) * start_factor
-#scheduler = torch.optim.lr_scheduler.LinearLR(optimizer, start_factor=start_factor, end_factor=0.2, total_iters=nb_epochs)
+#scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.6, patience=3) * start_factor
+scheduler = torch.optim.lr_scheduler.LinearLR(optimizer, start_factor=start_factor, end_factor=0.2, total_iters=nb_epochs)
 scaler = GradScaler()
 
 
