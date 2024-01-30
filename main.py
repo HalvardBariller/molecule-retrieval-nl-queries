@@ -20,7 +20,7 @@ from utils import compute_embeddings_valid, compute_similarities_LRAP, make_pred
 import argparse
 from datetime import datetime
 
-from losses.contrastive_loss import contrastive_loss, contrastive_loss_with_cosine
+from losses.contrastive_loss import contrastive_loss, contrastive_loss_with_cosine, negative_sampling_contrastive_loss
 
 import warnings
 warnings.simplefilter("ignore", category=UserWarning)
@@ -137,7 +137,7 @@ else:
 for i in range(nb_epochs):
     print('-----EPOCH{}-----'.format(i+1))
     model.train()
-    for batch in tqdm(train_loader):
+    for i, batch in tqdm(enumerate(train_loader)):
         input_ids = batch.input_ids
         batch.pop('input_ids')
         attention_mask = batch.attention_mask
@@ -149,10 +149,21 @@ for i in range(nb_epochs):
             x_graph, x_text = model(graph_batch.to(device), 
                                     input_ids.to(device), 
                                     attention_mask.to(device))
-        
+
+            # Negative sampling contrastive loss
+            if i == 0:
+                x_text_prev = x_text
+            keep_text = torch.randint(0, 2, (x_text.shape[0],), device=device)
+            x_text_negative = x_text * keep_text[:, None] + x_text_prev * (1 - keep_text[:, None])
+            current_loss = negative_sampling_contrastive_loss(x_graph, x_text_negative, keep_text)
+            x_text_prev = x_text
             
-            current_loss = contrastive_loss(x_graph, x_text)
+
+            ## Classical contrastive loss
+            #current_loss = contrastive_loss(x_graph, x_text)
             #current_loss = contrastive_loss_with_cosine(x_graph, x_text)
+
+            
 
         #optimizer.zero_grad()
         optimizer_graph.zero_grad()

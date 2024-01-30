@@ -2,7 +2,7 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 import utils
-from torch_geometric.nn import GCNConv, GINConv, SAGEConv
+from torch_geometric.nn import GCNConv, GINConv, SAGEConv, GATv2Conv
 from torch_geometric.nn import global_mean_pool, global_add_pool
 from torch_geometric.utils import degree
 from transformers import AutoModel
@@ -197,11 +197,6 @@ class GINEncoder(nn.Module):
 
 
 
-
-
-
-### Node Embedding Models ###
-    
 class GraphSAGE(nn.Module):
     def __init__(self, num_node_features, nout, nhid, nhid_ff, num_layers = 2):
         super(GraphSAGE, self).__init__()
@@ -230,3 +225,32 @@ class GraphSAGE(nn.Module):
         x = self.final_post_process2(x)
         return x
 
+
+
+class GAT(torch.nn.Module):
+    def __init__(self, num_node_features, nhid_ff, nhid = 256, nout = 300, num_layers = 3, dropout=0.5, alpha=0.2):
+        super(GAT, self).__init__()
+        self.num_layers = num_layers
+        self.dropout = dropout
+        self.conv1 = GATv2Conv(num_node_features, nhid, heads=4, dropout=dropout, concat=True, negative_slope=alpha)
+        self.conv2 = GATv2Conv(nhid * 4, nhid, heads=4, dropout=dropout, concat=True, negative_slope=alpha)  
+        self.conv3 = GATv2Conv(nhid * 4, nhid_ff, heads=6, dropout=dropout, concat=False, negative_slope=alpha)
+        self.final_post_process1 = nn.Linear(nhid_ff, nhid_ff)
+        self.final_post_process2 = nn.Linear(nhid_ff, nout)
+
+    def forward(self, graph_batch):
+        x, edge_index, batch = graph_batch.x, graph_batch.edge_index, graph_batch.batch
+        # 1st layer
+        x = F.elu(self.conv1(x, edge_index))
+        x = F.dropout(x, p=self.dropout, training=self.training)
+        # 2nd layer
+        x = F.elu(self.conv2(x, edge_index))
+        x = F.dropout(x, p=self.dropout, training=self.training)
+        # 3rd layer
+        x = self.conv3(x, edge_index)
+        x = F.normalize(x, p=2, dim=-1)
+        
+        x = global_mean_pool(x, batch)
+        x = self.final_post_process1(x).relu()
+        x = self.final_post_process2(x)
+        return x
