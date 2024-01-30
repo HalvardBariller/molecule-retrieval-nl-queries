@@ -201,8 +201,6 @@ for i in range(nb_epochs):
         'loss': loss,
         }, save_path)
         print('checkpoint saved to: {}'.format(save_path))
-        artifact = api.artifact(artifact_name, "model")
-        artifact.delete()
         artifact = wandb.Artifact(name=artifact_name, type="model")
         artifact.add_file(local_path=save_path)
         run.log_artifact(artifact)
