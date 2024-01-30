@@ -1,10 +1,9 @@
 from dataloader.dataloader import GraphTextDataset, GraphDataset, TextDataset
-#from torch_geometric.data import DataLoader
 from torch_geometric.loader import DataLoader 
 from torch.utils.data import DataLoader as TorchDataLoader
 from sklearn.metrics import label_ranking_average_precision_score
 from models.Model import Model
-from models.graph_encoders import GCNEncoder, GraphormerEncoder, GINEncoder
+from models.graph_encoders import GraphEncoder, GraphormerEncoder, GINEncoder, GraphSAGE
 from models.text_encoders import TextEncoder
 import numpy as np
 from transformers import AutoTokenizer
@@ -20,7 +19,7 @@ from tqdm import tqdm
 from utils import compute_embeddings_valid, compute_similarities_LRAP, make_predictions
 import argparse
 
-from losses.contrastive_loss import contrastive_loss
+from losses.contrastive_loss import contrastive_loss, contrastive_loss_with_cosine
 
 import warnings
 warnings.simplefilter("ignore", category=UserWarning)
@@ -51,9 +50,11 @@ wandb.init(
         project="2nd run - ALTEGRAD",
         name=args.name,
         config={
-            "epochs": 30,
-            "batch_size": 64,
-            "lr": 4e-5
+            "epochs": 50,
+            "batch_size": 32,
+            #"lr": 4e-5
+            "lr_text": 1e-5,
+            "lr_graph": 1e-4
             })
 config = wandb.config
 
@@ -62,7 +63,9 @@ config = wandb.config
 # learning_rate = 2e-5
 nb_epochs = wandb.config.epochs
 batch_size = wandb.config.batch_size
-learning_rate = wandb.config.lr
+#learning_rate = wandb.config.lr
+learning_rate_text = wandb.config.lr_text
+learning_rate_graph = wandb.config.lr_graph
 
 
 ## Early Stopping Parameters
@@ -92,14 +95,25 @@ if args.pretrained_model is not None:
     model.load_state_dict(checkpoint['model_state_dict'])
     print("Model loaded")
 
-optimizer = optim.AdamW(model.parameters(), lr=learning_rate,
-                                betas=(0.9, 0.98),
-                                weight_decay=0.01)
+# optimizer = optim.AdamW(model.parameters(), lr=learning_rate,
+#                                 betas=(0.9, 0.98),
+#                                 weight_decay=0.01)
+
+no_decay = ['bias', 'LayerNorm.weight']
+optimizer_text_grouped_parameters = [
+    {'params': [p for n, p in model.get_text_encoder().named_parameters() if not any(nd in n for nd in no_decay)], 'weight_decay': 0.01},
+    {'params': [p for n, p in model.get_text_encoder().named_parameters() if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
+]
+optimizer_text = optim.AdamW(optimizer_text_grouped_parameters, lr=learning_rate_text,
+                                betas=(0.9, 0.98))
+optimizer_graph = optim.AdamW(model.get_graph_encoder().parameters(), lr=learning_rate_graph,
+                                betas=(0.9, 0.98), weight_decay=0.01)
 
 
 start_factor = 1.0 if args.pretrained_model is None else 0.3
 #scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.6, patience=3) * start_factor
-scheduler = torch.optim.lr_scheduler.LinearLR(optimizer, start_factor=start_factor, end_factor=0.2, total_iters=nb_epochs)
+scheduler_text = torch.optim.lr_scheduler.LinearLR(optimizer_text, start_factor=start_factor, end_factor=0.3, total_iters=nb_epochs)
+scheduler_graph = torch.optim.lr_scheduler.LinearLR(optimizer_graph, start_factor=start_factor, end_factor=0.1, total_iters=nb_epochs)
 scaler = GradScaler()
 
 
@@ -130,11 +144,16 @@ for i in range(nb_epochs):
         
             
             current_loss = contrastive_loss(x_graph, x_text)
-            
-        optimizer.zero_grad()
+            #current_loss = contrastive_loss_with_cosine(x_graph, x_text)
+
+        #optimizer.zero_grad()
+        optimizer_graph.zero_grad()
+        optimizer_text.zero_grad()
         scaler.scale(current_loss).backward()
         #current_loss.backward()
-        scaler.step(optimizer)
+        #scaler.step(optimizer)
+        scaler.step(optimizer_graph)
+        scaler.step(optimizer_text)
         scaler.update()
         #optimizer.step()
         loss += current_loss.item()
@@ -159,6 +178,7 @@ for i in range(nb_epochs):
                                 input_ids.to(device), 
                                 attention_mask.to(device))
         current_loss = contrastive_loss(x_graph, x_text)   
+        #current_loss = contrastive_loss_with_cosine(x_graph, x_text)
         val_loss += current_loss.item()
 
     # Early stopping check
@@ -184,11 +204,15 @@ for i in range(nb_epochs):
         for file in os.listdir('./'):
             if 'model.pt' in file:
                 os.remove(file)
+            if args.pretrained_model is not None and args.pretrained_model in file:
+                os.remove(file)
         save_path = os.path.join('./', str(i)+'model.pt')
         torch.save({
         'epoch': i,
         'model_state_dict': model.state_dict(),
-        'optimizer_state_dict': optimizer.state_dict(),
+        #'optimizer_state_dict': optimizer.state_dict(),
+        'optimizer_graph_state_dict': optimizer_graph.state_dict(),
+        'optimizer_text_state_dict': optimizer_text.state_dict(),
         'validation_accuracy': val_loss,
         'loss': loss,
         }, save_path)
@@ -201,11 +225,12 @@ for i in range(nb_epochs):
               "LRAP_valid": lrap_current_valid,
               "LRAP_valid_normalized": lrap_current_valid_norm})
     
-    if patience_counter >= patience:
-        print(f'Early stopping triggered after epoch {i+1}. Ending training.')
-        break
+    # if patience_counter >= patience:
+    #     print(f'Early stopping triggered after epoch {i+1}. Ending training.')
+    #     break
 
-    scheduler.step()
+    scheduler_text.step()
+    scheduler_graph.step()
 
 
 # print('loading best model...')

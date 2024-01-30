@@ -7,3 +7,4 @@ networkx
 nltk
 pandas
 wandb
+matplotlib

@@ -4,7 +4,7 @@ from torch.utils.data import DataLoader as TorchDataLoader
 from sklearn.metrics import label_ranking_average_precision_score
 from models.Model import Model
 from models.expert_model import ExpertModel
-from models.graph_encoders import GINEncoder, GraphormerEncoder
+from models.graph_encoders import GINEncoder, GraphormerEncoder, GraphSAGE
 from models.text_encoders import TextEncoder
 import numpy as np
 from transformers import AutoTokenizer
@@ -15,6 +15,7 @@ from utils import compute_embeddings_valid, compute_similarities_LRAP, make_pred
 import argparse
 from tqdm import tqdm
 
+
 import warnings
 warnings.simplefilter("ignore", category=UserWarning)
 
@@ -24,7 +25,6 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 aggregated_predictions_val = []
-aggregated_predictions_test = []
 labels_val = []
 
 
@@ -60,35 +60,12 @@ for model in models:
     labels_val.append(y_true_val)
     predictions_val = make_predictions(graph_embeddings_val, text_embeddings_val, save_file=False)
     aggregated_predictions_val.append(predictions_val)
-    # Test predictions
-    graph_model = model.get_graph_encoder()
-    text_model = model.get_text_encoder()
-    test_cids_dataset = GraphDataset(root='./data/', gt=gt, split='test_cids')
-    test_text_dataset = TextDataset(file_path='./data/test_text.txt', tokenizer=tokenizer)
-    idx_to_cid = test_cids_dataset.get_idx_to_cid()
-    test_loader = DataLoader(test_cids_dataset, batch_size=batch_size, shuffle=False)
-    graph_embeddings = []
-    print("Computing graph embeddings test...")
-    for batch in tqdm(test_loader):
-        for output in graph_model(batch.to(device)):
-            graph_embeddings.append(output.tolist())
-    test_text_loader = TorchDataLoader(test_text_dataset, batch_size=batch_size, shuffle=False)
-    text_embeddings = []
-    print("Computing text embeddings test...")
-    for batch in tqdm(test_text_loader):
-        for output in text_model(batch['input_ids'].to(device), 
-                                attention_mask=batch['attention_mask'].to(device)):
-            text_embeddings.append(output.tolist())
-    predictions_test = make_predictions(graph_embeddings, text_embeddings, save_file=False)
-    aggregated_predictions_test.append(predictions_test)
-
+    
 print("Predictions computed, training ensemble model...")
 
 # Sanity check for labels_val
 for i in range(len(labels_val)):
     assert np.array_equal(labels_val[i], labels_val[0]), "labels_val[{}] is not equal to labels_val[0]".format(i)
-
-
 
 ######### Naive Ensemble model (average of predictions) #########
 
@@ -101,13 +78,31 @@ ensemble_predictions_val /= len(aggregated_predictions_val)
 print("Ensemble model trained")
 print("LRAP val:", label_ranking_average_precision_score(labels_val[0], ensemble_predictions_val))
 
-ensemble_predictions_test = np.zeros_like(predictions_test)
-for predictions_test in aggregated_predictions_test:
-    ensemble_predictions_test += predictions_test
-ensemble_predictions_test /= len(aggregated_predictions_test)
 
-prepare_submission_file(ensemble_predictions_test, "submission_ensemble")
 
 print("Predictions ready!")
+
+
+from sklearn.manifold import TSNE
+import matplotlib.pyplot as plt
+
+tsne = TSNE(n_components=2, random_state=0, perplexity = 5)
+# Plot graph embeddings and text embeddings for the first 10 graphs in the validation set using y_true_val as labels
+graph_embeddings_val_tsne = tsne.fit_transform(np.array(graph_embeddings_val[:10]))
+text_embeddings_val_tsne = tsne.fit_transform(np.array(text_embeddings_val[:10]))
+y_true_val_tsne = np.argmax(y_true_val[:10])
+
+fig, ax = plt.subplots(1, 1, figsize=(20, 10))
+
+
+
+
+#ax.scatter(graph_embeddings_val_tsne[:, 0], graph_embeddings_val_tsne[:, 1], c=y_true_val_tsne, label = "Graph embeddings")
+#ax.scatter(text_embeddings_val_tsne[:, 0], text_embeddings_val_tsne[:, 1], c=y_true_val_tsne, label = "Text embeddings")
+ax.legend()
+ax.set_title("Graph and text embeddings for the first 10 graphs in the validation set")
+plt.show()
+
+
 
 
