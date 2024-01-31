@@ -19,6 +19,7 @@ from tqdm import tqdm
 from utils import compute_embeddings_valid, compute_similarities_LRAP, make_predictions
 import argparse
 from datetime import datetime
+import gc
 
 from losses.contrastive_loss import contrastive_loss, contrastive_loss_with_cosine, negative_sampling_contrastive_loss
 
@@ -30,6 +31,9 @@ argparser.add_argument("-n", "--name", help="Run name (for Weights and Biases)")
 argparser.add_argument("-m", "--pretrained-model", help="Load pretrained model from file")
 args = argparser.parse_args()
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
+torch.cuda.empty_cache()
+gc.collect()
 
 ## Model
 #model_name = 'distilbert-base-uncased'
@@ -137,7 +141,9 @@ else:
 for i in range(nb_epochs):
     print('-----EPOCH{}-----'.format(i+1))
     model.train()
-    for j, batch in tqdm(enumerate(train_loader)):
+    for j, batch in enumerate(tqdm(train_loader)):
+        torch.cuda.empty_cache()
+        gc.collect()
         input_ids = batch.input_ids
         batch.pop('input_ids')
         attention_mask = batch.attention_mask
@@ -188,6 +194,8 @@ for i in range(nb_epochs):
     model.eval()       
     val_loss = 0        
     for batch in val_loader:
+        torch.cuda.empty_cache()
+        gc.collect()
         input_ids = batch.input_ids
         batch.pop('input_ids')
         attention_mask = batch.attention_mask
@@ -255,42 +263,3 @@ for i in range(nb_epochs):
     scheduler_text.step()
     scheduler_graph.step()
 
-
-# print('loading best model...')
-# checkpoint = torch.load(save_path)
-# model.load_state_dict(checkpoint['model_state_dict'])
-# model.eval()
-
-# graph_model = model.get_graph_encoder()
-# text_model = model.get_text_encoder()
-
-# test_cids_dataset = GraphDataset(root='./data/', gt=gt, split='test_cids')
-# test_text_dataset = TextDataset(file_path='./data/test_text.txt', tokenizer=tokenizer)
-
-# idx_to_cid = test_cids_dataset.get_idx_to_cid()
-
-# test_loader = DataLoader(test_cids_dataset, batch_size=batch_size, shuffle=False)
-
-# graph_embeddings = []
-# for batch in test_loader:
-#     for output in graph_model(batch.to(device)):
-#         graph_embeddings.append(output.tolist())
-
-# test_text_loader = TorchDataLoader(test_text_dataset, batch_size=batch_size, shuffle=False)
-# text_embeddings = []
-# for batch in test_text_loader:
-#     for output in text_model(batch['input_ids'].to(device), 
-#                              attention_mask=batch['attention_mask'].to(device)):
-#         text_embeddings.append(output.tolist())
-
-
-# from sklearn.metrics.pairwise import cosine_similarity
-
-# similarity = cosine_similarity(graph_embeddings, text_embeddings)
-
-# solution = pd.DataFrame(similarity)
-# solution['ID'] = solution.index
-# solution = solution[['ID'] + [col for col in solution.columns if col!='ID']]
-# solution.to_csv('submission.csv', index=False)
-        
-#make_predictions(text_embeddings, graph_embeddings)

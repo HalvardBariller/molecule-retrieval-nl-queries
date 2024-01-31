@@ -14,6 +14,7 @@ import pandas as pd
 from utils import compute_embeddings_valid, compute_similarities_LRAP, make_predictions, prepare_submission_file
 import argparse
 from tqdm import tqdm
+import gc
 
 import warnings
 warnings.simplefilter("ignore", category=UserWarning)
@@ -26,6 +27,9 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 aggregated_predictions_val = []
 aggregated_predictions_test = []
 labels_val = []
+
+torch.cuda.empty_cache()
+gc.collect()
 
 
 model_1 = {"model_path": "gin_6layers_roberta_8131.pt",
@@ -96,7 +100,6 @@ ensemble_predictions_val = np.zeros_like(predictions_val)
 
 for predictions_val in aggregated_predictions_val:
     ensemble_predictions_val += predictions_val
-ensemble_predictions_val /= len(aggregated_predictions_val)
 
 print("Ensemble model trained")
 print("LRAP val:", label_ranking_average_precision_score(labels_val[0], ensemble_predictions_val))
@@ -104,10 +107,35 @@ print("LRAP val:", label_ranking_average_precision_score(labels_val[0], ensemble
 ensemble_predictions_test = np.zeros_like(predictions_test)
 for predictions_test in aggregated_predictions_test:
     ensemble_predictions_test += predictions_test
-ensemble_predictions_test /= len(aggregated_predictions_test)
 
-prepare_submission_file(ensemble_predictions_test, "submission_ensemble")
+
+####### Hard Voting Ensemble model #########
+
+hard_ensemble_predictions_val = np.zeros_like(predictions_val)
+
+for predictions_val in aggregated_predictions_val:
+    sorted_predictions_val = np.argsort(predictions_val, axis=1)
+    ranks = np.argsort(sorted_predictions_val, axis=1)
+    hard_ensemble_predictions_val += ranks
+
+print("Hard Voting Ensemble model trained")
+print("LRAP val:", label_ranking_average_precision_score(labels_val[0], hard_ensemble_predictions_val))
+
+hard_ensemble_predictions_test = np.zeros_like(predictions_test)
+for predictions_test in aggregated_predictions_test:
+    sorted_predictions_test = np.argsort(predictions_test, axis=1)
+    ranks = np.argsort(sorted_predictions_test, axis=1)
+    hard_ensemble_predictions_test += ranks
+
+
+
+# Best model
+    
+if label_ranking_average_precision_score(labels_val[0], ensemble_predictions_val) > label_ranking_average_precision_score(labels_val[0], hard_ensemble_predictions_val):
+    print("Best model: Soft Ensemble model")
+    prepare_submission_file(ensemble_predictions_test, "submission_ensemble")
+else:
+    print("Best model: Hard Voting Ensemble model")
+    prepare_submission_file(hard_ensemble_predictions_test, "submission_ensemble_hard_voting")
 
 print("Predictions ready!")
-
-
