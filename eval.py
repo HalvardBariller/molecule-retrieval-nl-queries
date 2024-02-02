@@ -1,21 +1,17 @@
 from dataloader.dataloader import GraphTextDataset, GraphDataset, TextDataset
 from torch_geometric.loader import DataLoader 
 from torch.utils.data import DataLoader as TorchDataLoader
-from sklearn.metrics import label_ranking_average_precision_score
 from models.Model import Model
 from models.graph_encoders import GINEncoder
 from models.text_encoders import TextEncoder
 import numpy as np
 from transformers import AutoTokenizer
 import torch
-import os
-import pandas as pd
-from utils import compute_embeddings_valid, compute_similarities_LRAP, make_predictions
+from utils import make_predictions
 import argparse
 from tqdm import tqdm
 
-from losses.contrastive_loss import contrastive_loss
-
+# Not needed normally?
 import warnings
 warnings.simplefilter("ignore", category=UserWarning)
 
@@ -23,7 +19,10 @@ argparser = argparse.ArgumentParser(description="Evaluates the given model on th
 argparser.add_argument("model_path")
 args = argparser.parse_args()
 
-## Model
+
+########################
+#     TEXT ENCODER     #
+########################
 model_name = 'distilbert-base-uncased'
 
 
@@ -32,11 +31,16 @@ batch_size = 32
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 gt = np.load("./data/token_embedding_dict.npy", allow_pickle=True)[()]
 val_dataset = GraphTextDataset(root='./data/', gt=gt, split='val', tokenizer=tokenizer)
-#train_dataset = GraphTextDataset(root='./data/', gt=gt, split='train', tokenizer=tokenizer)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+
+########################
+#    GRAPH ENCODER     #
+########################
 graph_encoder = GINEncoder(num_layers=5, num_node_features=300, interm_hidden_dim=600, hidden_dim=300, out_interm_dim=600, out_dim=768) # nout = bert model hidden dim
+
+
 text_encoder = TextEncoder(model_name)
 model = Model(graph_encoder, text_encoder)
 model.to(device)
@@ -48,28 +52,6 @@ checkpoint = torch.load(args.model_path, map_location=device)
 model.load_state_dict(checkpoint['model_state_dict'])
 print("Model loaded")
 model.eval()
-
-# Compute validation LRAP
-"""val_loader = DataLoader(val_dataset, batch_size=batch_size)
-val_loss = 0        
-for batch in val_loader:
-    input_ids = batch.input_ids
-    batch.pop('input_ids')
-    attention_mask = batch.attention_mask
-    batch.pop('attention_mask')
-    graph_batch = batch
-    x_graph, x_text = model(graph_batch.to(device), 
-                            input_ids.to(device), 
-                            attention_mask.to(device))
-    current_loss = contrastive_loss(x_graph, x_text)   
-    val_loss += current_loss.item()
-
-print('Validation loss: ', str(val_loss/len(val_loader)) )
-
-# LRAP computation
-graph_embeddings, text_embeddings, y_true = compute_embeddings_valid(model, val_dataset, device, batch_size)
-lrap_current_valid = compute_similarities_LRAP(graph_embeddings, text_embeddings, y_true)
-print("Validation LRAP Score:", lrap_current_valid)"""
 
 graph_model = model.get_graph_encoder()
 text_model = model.get_text_encoder()
@@ -95,16 +77,6 @@ for batch in tqdm(test_text_loader):
                              attention_mask=batch['attention_mask'].to(device)):
         text_embeddings.append(output.tolist())
 
-
-# from sklearn.metrics.pairwise import cosine_similarity
-
-# similarity = cosine_similarity(text_embeddings, graph_embeddings)
-
-
-# solution = pd.DataFrame(similarity)
-# solution['ID'] = solution.index
-# solution = solution[['ID'] + [col for col in solution.columns if col!='ID']]
-# solution.to_csv('submission2201.csv', index=False)
         
 make_predictions(graph_embeddings, text_embeddings)
 
