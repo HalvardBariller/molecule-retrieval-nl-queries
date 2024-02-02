@@ -94,7 +94,7 @@ for i in range(len(labels_val)):
 
 
 
-######### Naive Ensemble model (average of predictions) #########
+######### Soft Voting Ensemble model (sum of similarities) #########
 
 ensemble_predictions_val = np.zeros_like(predictions_val)
 
@@ -109,7 +109,7 @@ for predictions_test in aggregated_predictions_test:
     ensemble_predictions_test += predictions_test
 
 
-####### Hard Voting Ensemble model #########
+####### Hard Voting Ensemble model (sum of ranks) #########
 
 hard_ensemble_predictions_val = np.zeros_like(predictions_val)
 
