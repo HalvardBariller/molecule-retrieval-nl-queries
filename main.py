@@ -3,7 +3,7 @@ from torch_geometric.loader import DataLoader
 from torch.utils.data import DataLoader as TorchDataLoader
 from sklearn.metrics import label_ranking_average_precision_score
 from models.Model import Model
-from models.graph_encoders import GraphEncoder, GraphormerEncoder, GINEncoder, GraphSAGE
+from models.graph_encoders import GCNEncoder, GraphormerEncoder, GINEncoder, GraphSAGE, GAT, AttentiveFP
 from models.text_encoders import TextEncoder
 import numpy as np
 from transformers import AutoTokenizer
@@ -32,9 +32,6 @@ argparser.add_argument("-m", "--pretrained-model", help="Load pretrained model f
 args = argparser.parse_args()
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
-torch.cuda.empty_cache()
-gc.collect()
-
 ## Model
 #model_name = 'distilbert-base-uncased'
 #model_name = 'allenai/scibert_scivocab_uncased'
@@ -58,11 +55,11 @@ run = wandb.init(
             "epochs": 50,
             "batch_size": 32,
             #"lr": 4e-5
-            "lr_text": 1e-5,
-            "lr_graph": 1e-4
+            "lr_text": 2e-5,
+            "lr_graph": 4e-5
             })
 config = wandb.config
-api = wandb.Api(overrides={"project": "2nd run - ALTEGRAD", "entity": "vdng9338"})
+#api = wandb.Api(overrides={"project": "2nd run - ALTEGRAD", "entity": "vdng9338"})
 
 # nb_epochs = 5
 # batch_size = 32
@@ -85,9 +82,12 @@ num_workers = 12
 val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, num_workers = num_workers, pin_memory = True)
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers = num_workers, pin_memory = True)
 
-graph_encoder = GINEncoder(num_layers=6, num_node_features=300, interm_hidden_dim=600, hidden_dim=300, out_interm_dim=600, out_dim=768) # nout = bert model hidden dim
+#graph_encoder = GINEncoder(num_layers=6, num_node_features=300, interm_hidden_dim=600, hidden_dim=300, out_interm_dim=600, out_dim=768) # nout = bert model hidden dim
 #graph_encoder = GraphormerEncoder(num_layers = 6, num_node_features = 300, hidden_dim = 768, num_heads = 32)
 #graph_encoder = GCNEncoder(num_node_features=300, n_layers_conv=5, n_layers_out=3, nout=768, nhid=300, graph_hidden_channels=300)
+#graph_encoder = GraphSAGE(num_node_features = 300, nout = 768, nhid = 300, nhid_ff = 600, num_layers = 2)
+graph_encoder = AttentiveFP(num_node_features = 300, nout = 768, nhid = 300, nhid_ff = 600, num_layers = 2)
+
 
 text_encoder = TextEncoder(model_name)
 
@@ -142,8 +142,6 @@ for i in range(nb_epochs):
     print('-----EPOCH{}-----'.format(i+1))
     model.train()
     for j, batch in enumerate(tqdm(train_loader)):
-        torch.cuda.empty_cache()
-        gc.collect()
         input_ids = batch.input_ids
         batch.pop('input_ids')
         attention_mask = batch.attention_mask
@@ -167,7 +165,7 @@ for i in range(nb_epochs):
 
             ## Classical contrastive loss
             #current_loss = contrastive_loss(x_graph, x_text)
-            #current_loss = contrastive_loss_with_cosine(x_graph, x_text)
+            current_loss = contrastive_loss_with_cosine(x_graph, x_text)
 
             
 
@@ -194,8 +192,6 @@ for i in range(nb_epochs):
     model.eval()       
     val_loss = 0        
     for batch in val_loader:
-        torch.cuda.empty_cache()
-        gc.collect()
         input_ids = batch.input_ids
         batch.pop('input_ids')
         attention_mask = batch.attention_mask
@@ -204,8 +200,8 @@ for i in range(nb_epochs):
         x_graph, x_text = model(graph_batch.to(device), 
                                 input_ids.to(device), 
                                 attention_mask.to(device))
-        current_loss = contrastive_loss(x_graph, x_text)   
-        #current_loss = contrastive_loss_with_cosine(x_graph, x_text)
+        #current_loss = contrastive_loss(x_graph, x_text)   
+        current_loss = contrastive_loss_with_cosine(x_graph, x_text)
         val_loss += current_loss.item()
 
     # Early stopping check
@@ -244,10 +240,10 @@ for i in range(nb_epochs):
         'loss': loss,
         }, save_path)
         print('checkpoint saved to: {}'.format(save_path))
-        artifact = wandb.Artifact(name=artifact_name, type="model")
-        artifact.add_file(local_path=save_path)
-        run.log_artifact(artifact)
-        print("Artifact uploaded")
+        # artifact = wandb.Artifact(name=artifact_name, type="model")
+        # artifact.add_file(local_path=save_path)
+        # run.log_artifact(artifact)
+        # print("Artifact uploaded")
 
     wandb.log({"loss": loss, 
                "val_loss": val_loss, 

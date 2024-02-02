@@ -9,7 +9,7 @@ class Model(nn.Module):
         self.projection = nn.Sequential(
             nn.Linear(768, 768),
             nn.ReLU(),
-            nn.Linear(768, 512)
+            nn.Linear(768, 1024)
             )
         
     def forward(self, graph_batch, input_ids, attention_mask):

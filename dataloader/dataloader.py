@@ -69,7 +69,8 @@ class GraphTextDataset(Dataset):
             text_input = self.tokenizer([self.description[1][cid]],
                                    return_tensors="pt", 
                                    truncation=True, 
-                                   max_length=256,
+                                   #max_length=256,
+                                   max_length=512,
                                    padding="max_length",
                                    add_special_tokens=True,)
             edge_index, x = self.process_graph(raw_path)
