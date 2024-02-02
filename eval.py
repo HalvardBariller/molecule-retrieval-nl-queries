@@ -12,8 +12,8 @@ import argparse
 from tqdm import tqdm
 
 # Not needed normally?
-import warnings
-warnings.simplefilter("ignore", category=UserWarning)
+#import warnings
+#warnings.simplefilter("ignore", category=UserWarning)
 
 argparser = argparse.ArgumentParser(description="Evaluates the given model on the validation set and generates submission using the model.")
 argparser.add_argument("model_path")
