@@ -8,6 +8,12 @@ from torch_geometric.utils import degree
 from transformers import AutoModel
 
 
+###################################
+# Graph Convolutional Network (baseline)
+# From paper "Semi-Supervised Classification with Graph Convolutional Networks" by Thomas N. Kipf and Max Welling
+# (https://arxiv.org/abs/1609.02907v4)
+###################################
+
 class GCNEncoder(nn.Module):
     def __init__(self, num_node_features, n_layers_conv, n_layers_out, nout, nhid, graph_hidden_channels):
         super(GCNEncoder, self).__init__()
@@ -42,7 +48,17 @@ class GCNEncoder(nn.Module):
         x = global_mean_pool(x, batch)
         x = self.mol_mlp(x)
         return x
-    
+
+
+
+
+##################################
+# Graphormer
+# From paper "Do Transformers Really Perform Bad for Graph Representation?" by Chengxuan Ying, Tianle Cai et al.
+# (https://arxiv.org/abs/2106.05234)
+# The implementation below is split into multiple classes.
+##################################
+
 class Graphormer_AttentionHead(nn.Module):
     def __init__(self, hidden_dim, dim_k):
         super(Graphormer_AttentionHead, self).__init__()
@@ -58,7 +74,6 @@ class Graphormer_AttentionHead(nn.Module):
         weights = torch.softmax(logits, -1)
         V = self.proj_V(H)
         return torch.mm(weights, V)
-
 
 
 class Graphormer_MHA(nn.Module):
@@ -79,6 +94,7 @@ class Graphormer_MHA(nn.Module):
         outs = [head(H, b_matrix, attention_mask) for head in self.heads]
         return self.proj_out(torch.cat(outs, -1))
 
+
 class Graphormer_EncoderBlock(nn.Module):
     def __init__(self, hidden_dim, num_heads, dim_ff):
         super(Graphormer_EncoderBlock, self).__init__()
@@ -92,8 +108,6 @@ class Graphormer_EncoderBlock(nn.Module):
         x1 = F.relu(self.ffn_lin1(F.layer_norm(x, (self.hidden_dim,))))
         x2 = self.ffn_lin2(x1)
         return x+x2
-
-
 
 
 class GraphormerEncoder(nn.Module):
@@ -152,7 +166,15 @@ class GraphormerEncoder(nn.Module):
         for i in range(self.num_layers):
             x = self.layers[i](x, B_matrix, attention_mask)
         return x[graph_batch.virtual_node_index]        
-    
+
+
+
+###################################
+# Graph Isomorphism Network (GIN)
+# From paper "How Powerful are Graph Neural Networks?" by Keyulu Xu, Weihua Hu et al.
+# (https://arxiv.org/abs/1810.00826)
+###################################
+
 class GINEncoder(nn.Module):
     def __init__(self, num_layers, num_node_features, interm_hidden_dim, hidden_dim, out_interm_dim, out_dim):
         super(GINEncoder, self).__init__()
@@ -196,6 +218,12 @@ class GINEncoder(nn.Module):
 
 
 
+###############################
+# GraphSAGE
+# From paper "Inductive Representation Learning on Large Graphs" by William L. Hamilton et al.
+# (https://arxiv.org/abs/1706.02216)
+###############################
+
 class GraphSAGE(nn.Module):
     def __init__(self, num_node_features, nout, nhid, nhid_ff, num_layers = 2):
         super(GraphSAGE, self).__init__()
@@ -226,6 +254,12 @@ class GraphSAGE(nn.Module):
 
 
 
+
+###############################
+# Graph Attention Networks (GAT)
+# From paper "Graph Attention Networks" by Petar Veličković, Guillem Cucurull et al.
+# (https://arxiv.org/abs/1710.10903)
+###############################
 class GAT(torch.nn.Module):
     def __init__(self, num_node_features, nhid_ff, nhid = 256, nout = 300, num_layers = 3, dropout=0.5, alpha=0.2):
         super(GAT, self).__init__()
