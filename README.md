@@ -3,6 +3,15 @@ Molecule Retrieval with Natural Language Queries. Challenge for the MVA Class "A
 
 # Description of runnable files
 
+In all these runnable files, hyperparameters, model definitions and all the code that needs
+to be changed according to your needs are indicated with a comment header, such as:
+```
+###########################
+#      GRAPH ENCODER      #
+###########################
+# Define your graph encoder here. Below are some of the encoders that we tried.
+```
+
 ## `main.py`
 
 Trains a model. The model to train including hyperparameters is defined in this file (but the actual implementation is split into several files).

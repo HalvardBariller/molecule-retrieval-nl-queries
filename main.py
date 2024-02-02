@@ -137,9 +137,9 @@ scaler = GradScaler()
 
 
 
-###########################
-#      TRAINING LOOP      #
-###########################
+#################
+# TRAINING LOOP
+#################
 epoch = 0
 loss = 0
 losses = []
