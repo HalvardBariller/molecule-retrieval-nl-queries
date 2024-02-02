@@ -20,10 +20,6 @@ from losses.contrastive_loss import contrastive_loss, contrastive_loss_with_cosi
 
 ## Initialization
 
-# normally not needed?
-#import warnings
-#warnings.simplefilter("ignore", category=UserWarning)
-
 argparser = argparse.ArgumentParser(description="Trains a model.")
 argparser.add_argument("-n", "--name", help="Run name (for Weights and Biases)")
 argparser.add_argument("-m", "--pretrained-model", help="Load pretrained model from file")

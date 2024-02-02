@@ -13,9 +13,6 @@ from utils import compute_embeddings_valid, compute_similarities_LRAP, make_pred
 from tqdm import tqdm
 import gc
 
-#import warnings
-#warnings.simplefilter("ignore", category=UserWarning)
-
 
 batch_size = 32
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
