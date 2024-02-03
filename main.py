@@ -15,14 +15,10 @@ from tqdm import tqdm
 from utils import compute_embeddings_valid, compute_similarities_LRAP
 import argparse
 from datetime import datetime
-from losses.contrastive_loss import contrastive_loss, contrastive_loss_with_cosine, negative_sampling_contrastive_loss
+from losses.contrastive_loss import contrastive_loss, contrastive_loss_with_cosine
 
 
 ## Initialization
-
-# normally not needed?
-import warnings
-warnings.simplefilter("ignore", category=UserWarning)
 
 argparser = argparse.ArgumentParser(description="Trains a model.")
 argparser.add_argument("-n", "--name", help="Run name (for Weights and Biases)")
@@ -99,6 +95,8 @@ train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, nu
 #graph_encoder = GCNEncoder(num_node_features=300, n_layers_conv=5, n_layers_out=3, nout=768, nhid=300, graph_hidden_channels=300)
 graph_encoder = GraphSAGE(num_node_features = 300, nout = 768, nhid = 300, nhid_ff = 600, num_layers = 2)
 #graph_encoder = AttentiveFP(num_node_features = 300, nout = 768, nhid = 300, nhid_ff = 600, num_layers = 2)
+#graph_encoder = GraphSAGE(num_node_features = 300, nout = 768, nhid = 300, nhid_ff = 600, num_layers = 2)
+#graph_encoder = AttentiveFP(num_node_features = 300, nout = 768, nhid = 300, nhid_ff = 600, num_layers = 2)
 
 
 
@@ -137,9 +135,9 @@ scaler = GradScaler()
 
 
 
-###########################
-#      TRAINING LOOP      #
-###########################
+#################
+# TRAINING LOOP
+#################
 epoch = 0
 loss = 0
 losses = []

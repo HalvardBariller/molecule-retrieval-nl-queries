@@ -9,15 +9,9 @@ from models.text_encoders import TextEncoder
 import numpy as np
 from transformers import AutoTokenizer
 import torch
-import os
-import pandas as pd
 from utils import compute_embeddings_valid, compute_similarities_LRAP, make_predictions, prepare_submission_file
-import argparse
 from tqdm import tqdm
 import gc
-
-import warnings
-warnings.simplefilter("ignore", category=UserWarning)
 
 
 batch_size = 32
@@ -32,6 +26,11 @@ torch.cuda.empty_cache()
 gc.collect()
 
 
+########################
+#        MODELS        #
+########################
+# Define the models below. Do not forget to update the `models` list if you change the number of models.
+# "model_name" refers to the name of the text encoder model on Hugging Face.
 model_1 = {"model_path": "gin_6layers_roberta_8131.pt",
            "model_name": "roberta-base",
            "graph_encoder": GINEncoder(num_layers=6, num_node_features=300, interm_hidden_dim=600, 
@@ -44,6 +43,8 @@ model_2 = {"model_path": "graphormer_model.pt",
               "text_encoder": TextEncoder("roberta-base")}
 
 models = [model_1, model_2]
+
+
 
 for model in models:
     model_path, model_name = model["model_path"], model["model_name"]

@@ -159,6 +159,13 @@ def prepare_submission_file(similarities, submission_file_name='submission'):
     
 
 def compute_shortest_path_matrix(graph, to_undirected=True):
+    """Compute the matrix of shortest paths of the given PyTorch Geometric graph.
+    
+    Parameters:
+    graph: torch_geometric.data.Data
+        The PyTorch Geometric graph for which to compute the shortest path matrix.
+    to_undirected: boolean, optional
+        Whether to consider the graph to be undirected."""
     nx_graph = to_networkx(graph, to_undirected=to_undirected)
     sp = nx.shortest_path_length(nx_graph)
     ret = -1*torch.ones((nx_graph.number_of_nodes(), nx_graph.number_of_nodes()), dtype=torch.long)
