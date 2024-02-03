@@ -97,8 +97,8 @@ train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, nu
 #graph_encoder = GINEncoder(num_layers=6, num_node_features=300, interm_hidden_dim=600, hidden_dim=300, out_interm_dim=600, out_dim=768) # nout = bert model hidden dim
 #graph_encoder = GraphormerEncoder(num_layers = 6, num_node_features = 300, hidden_dim = 768, num_heads = 32)
 #graph_encoder = GCNEncoder(num_node_features=300, n_layers_conv=5, n_layers_out=3, nout=768, nhid=300, graph_hidden_channels=300)
-#graph_encoder = GraphSAGE(num_node_features = 300, nout = 768, nhid = 300, nhid_ff = 600, num_layers = 2)
-graph_encoder = AttentiveFP(num_node_features = 300, nout = 768, nhid = 300, nhid_ff = 600, num_layers = 2)
+graph_encoder = GraphSAGE(num_node_features = 300, nout = 768, nhid = 300, nhid_ff = 600, num_layers = 2)
+#graph_encoder = AttentiveFP(num_node_features = 300, nout = 768, nhid = 300, nhid_ff = 600, num_layers = 2)
 
 
 
@@ -129,7 +129,7 @@ optimizer_graph = optim.AdamW(model.get_graph_encoder().parameters(), lr=learnin
 start_factor = 1.0 if args.pretrained_model is None else 0.3
 #scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.6, patience=3) * start_factor
 scheduler_text = torch.optim.lr_scheduler.LinearLR(optimizer_text, start_factor=start_factor, end_factor=0.3, total_iters=nb_epochs)
-scheduler_graph = torch.optim.lr_scheduler.LinearLR(optimizer_graph, start_factor=start_factor, end_factor=0.1, total_iters=nb_epochs)
+scheduler_graph = torch.optim.lr_scheduler.LinearLR(optimizer_graph, start_factor=start_factor, end_factor=0.3, total_iters=nb_epochs)
 
 ## PyTorch AMP
 scaler = GradScaler()
