@@ -4,7 +4,7 @@ from torch.utils.data import DataLoader as TorchDataLoader
 from sklearn.metrics import label_ranking_average_precision_score
 from models.Model import Model
 from models.expert_model import ExpertModel
-from models.graph_encoders import GINEncoder, GraphormerEncoder
+from models.graph_encoders import GINEncoder, GraphormerEncoder, GraphSAGE
 from models.text_encoders import TextEncoder
 import numpy as np
 from transformers import AutoTokenizer
@@ -42,7 +42,12 @@ model_2 = {"model_path": "graphormer_model.pt",
               "graph_encoder": GraphormerEncoder(num_layers = 6, num_node_features = 300, hidden_dim = 768, num_heads = 32),
               "text_encoder": TextEncoder("roberta-base")}
 
-models = [model_1, model_2]
+model_3 = {"model_path": "graphsage.pt",
+              "model_name": "roberta-base",
+              "graph_encoder": GraphSAGE(num_node_features = 300, nout = 768, nhid = 300, nhid_ff = 600, num_layers = 2),
+              "text_encoder": TextEncoder("roberta-base")}
+
+models = [model_1, model_2, model_3]
 
 
 

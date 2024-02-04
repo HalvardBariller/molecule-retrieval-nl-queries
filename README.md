@@ -31,4 +31,4 @@ Computes predictions by aggregating several models in two ways:
 - by summing the normalized average similarity scores of each model,
 - by summing the ranks computed with the similarity scores of each model (hard voting).
 
-Usage: define the models and set the checkpoint paths directly in the code, then run `python average_predictions.py`.
+Usage: define the models and set the checkpoint paths directly in the code in the form of a dictionary, add it to the list of models from which the predictions are computed, then run `python average_predictions.py`.
