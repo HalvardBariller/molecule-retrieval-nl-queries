@@ -46,7 +46,7 @@ run = wandb.init(
         name=args.name,
         config={
             "epochs": 50,
-            "batch_size": 32,
+            "batch_size": 16,
             "lr_text": 2e-5,
             "lr_graph": 4e-5
             })
@@ -90,7 +90,7 @@ train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, nu
 #      GRAPH ENCODER      #
 ###########################
 # Define your graph encoder here. Below are some of the encoders that we tried.
-graph_encoder = GINEncoder(num_layers=6, num_node_features=300, interm_hidden_dim=600, hidden_dim=300, out_interm_dim=600, out_dim=768) # nout = bert model hidden dim
+graph_encoder = GINEncoder(num_layers=12, num_node_features=300, interm_hidden_dim=600, hidden_dim=300, out_interm_dim=600, out_dim=768) # nout = bert model hidden dim
 #graph_encoder = GraphormerEncoder(num_layers = 6, num_node_features = 300, hidden_dim = 768, num_heads = 32)
 #graph_encoder = GCNEncoder(num_node_features=300, n_layers_conv=5, n_layers_out=3, nout=768, nhid=300, graph_hidden_channels=300)
 #graph_encoder = GraphSAGE(num_node_features = 300, nout = 768, nhid = 300, nhid_ff = 600, num_layers = 2)
